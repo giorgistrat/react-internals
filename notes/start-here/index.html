@@ -1,0 +1,277 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="The beginner entry point: reading order, a plain-English glossary and the top interview questions."><link rel="icon" href="/react-internals/favicon.svg" type="image/svg+xml"><title>Start Here · React Internals</title><link rel="stylesheet" href="/react-internals/_astro/notes-meta.bWncZdHM.css"><style>.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:center;gap:32px;padding-top:clamp(28px,5vw,56px);padding-bottom:clamp(28px,4vw,44px);display:grid}@media (width<=760px){.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:1fr}.head-art[data-astro-cid-vex5zuxs]{display:none}}.back[data-astro-cid-vex5zuxs]{margin-bottom:22px;padding:.45em 1em;font-size:13.5px}.meta[data-astro-cid-vex5zuxs]{align-items:center;gap:12px;margin-bottom:12px;display:flex}.num[data-astro-cid-vex5zuxs]{color:var(--ink-soft);font-size:14px;font-weight:800}h1[data-astro-cid-vex5zuxs]{letter-spacing:-.05em;font-size:clamp(38px,6vw,68px);line-height:1}.summary[data-astro-cid-vex5zuxs]{max-width:56ch;color:var(--ink-soft);margin:16px 0 0;font-size:18px}.head-art[data-astro-cid-vex5zuxs]{padding:12px}.head-art[data-astro-cid-vex5zuxs] .panel[data-astro-cid-vex5zuxs] svg{width:100%;height:auto;display:block}.layout[data-astro-cid-vex5zuxs]{grid-template-columns:240px minmax(0,1fr);align-items:start;gap:28px;display:grid}@media (width<=1000px){.layout[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1fr)}.toc[data-astro-cid-vex5zuxs]{display:none}}.toc[data-astro-cid-vex5zuxs]{position:sticky;top:20px}.toc-card[data-astro-cid-vex5zuxs]{max-height:calc(100vh - 40px);padding:16px 16px 12px;overflow-y:auto}.toc-title[data-astro-cid-vex5zuxs]{text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-size:12px;font-weight:800}.toc[data-astro-cid-vex5zuxs] ol[data-astro-cid-vex5zuxs]{margin:0;padding:0;font-size:14px;line-height:1.35;list-style:none}.toc[data-astro-cid-vex5zuxs] li[data-astro-cid-vex5zuxs]{margin:0 0 8px}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]{font-weight:600;text-decoration:none}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]:hover{text-decoration:underline;text-decoration-color:var(--orange);text-decoration-thickness:2px}.source[data-astro-cid-vex5zuxs]{border-top:2px dashed var(--cream-deep);overflow-wrap:anywhere;margin-top:2.5em;padding-top:1em;font-size:14px}.pager[data-astro-cid-vex5zuxs]{flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:40px;display:flex}
+</style></head><body><header class="note-head wrap" data-astro-cid-vex5zuxs><div class="head-text" data-astro-cid-vex5zuxs><a class="btn btn-ghost back" href="/react-internals/" data-astro-cid-vex5zuxs>← All notes</a><div class="meta" data-astro-cid-vex5zuxs><span class="pill" data-astro-cid-vex5zuxs><span class="lvl lvl-must" data-astro-cid-vex5zuxs></span>Must know</span><span class="num" data-astro-cid-vex5zuxs>Note 00</span></div><h1 data-astro-cid-vex5zuxs>Start Here</h1><p class="summary" data-astro-cid-vex5zuxs>The beginner entry point: reading order, a plain-English glossary and the top interview questions.</p></div><div class="head-art card" data-astro-cid-vex5zuxs><div class="panel" data-astro-cid-vex5zuxs><svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><line x1="0" y1="78" x2="240" y2="78" stroke="#2b2522" stroke-width="1.4"/><polygon points="99.2,82.0 126.9,98.0 126.9,90.0 99.2,74.0" fill="#62c9bd" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="147.7,86.0 126.9,98.0 126.9,90.0 147.7,78.0" fill="#3a9d93" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="120.0,62.0 147.7,78.0 126.9,90.0 99.2,74.0" fill="#a6ece3" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="99.2,74.0 161.6,110.0 161.6,78.0 99.2,42.0" fill="#ff8a1f" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="182.4,98.0 161.6,110.0 161.6,78.0 182.4,66.0" fill="#d96a0b" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="120.0,30.0 182.4,66.0 161.6,78.0 99.2,42.0" fill="#ffb36b" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="133.9,102.0 161.6,118.0 161.6,110.0 133.9,94.0" fill="#62c9bd" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="182.4,106.0 161.6,118.0 161.6,110.0 182.4,98.0" fill="#3a9d93" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="154.6,82.0 182.4,98.0 161.6,110.0 133.9,94.0" fill="#a6ece3" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="116.5,48.0 151.2,68.0 151.2,44.0 116.5,24.0" fill="#f5c542" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="165.0,60.0 151.2,68.0 151.2,44.0 165.0,36.0" fill="#d39f1c" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="130.4,16.0 165.0,36.0 151.2,44.0 116.5,24.0" fill="#ffe08a" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="130.4,28.0 144.2,36.0 144.2,24.0 130.4,16.0" fill="#e58ccb" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="151.2,32.0 144.2,36.0 144.2,24.0 151.2,20.0" fill="#c4679f" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="137.3,12.0 151.2,20.0 144.2,24.0 130.4,16.0" fill="#f7c4e6" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><circle cx="131.78460969082653" cy="52" r="4" fill="#a6ece3" stroke="#2b2522" stroke-width="1.5"/><circle cx="149.78460969082653" cy="56" r="4" fill="#a6ece3" stroke="#2b2522" stroke-width="1.5"/><g stroke="#2b2522" stroke-width="1.3" stroke-linejoin="round"><line x1="44" y1="116" x2="44" y2="128"/><line x1="48" y1="116" x2="48" y2="128"/><polygon points="42,116 50,116 50,106 42,106" fill="#9d7cc9"/><circle cx="46" cy="102" r="3.6" fill="#fff"/></g><g stroke="#2b2522" stroke-width="1.3" stroke-linejoin="round"><line x1="196.2" y1="111.2" x2="196.2" y2="122"/><line x1="199.8" y1="111.2" x2="199.8" y2="122"/><polygon points="194.4,111.2 201.6,111.2 201.6,102.2 194.4,102.2" fill="#62c9bd"/><circle cx="198" cy="98.6" r="3.24" fill="#fff"/></g></svg></div></div></header><div class="wrap layout" data-astro-cid-vex5zuxs><aside class="toc" data-astro-cid-vex5zuxs><nav class="card toc-card" aria-label="On this page" data-astro-cid-vex5zuxs><p class="toc-title" data-astro-cid-vex5zuxs>On this page</p><ol data-astro-cid-vex5zuxs><li data-astro-cid-vex5zuxs><a href="#the-whole-thing-in-one-paragraph" data-astro-cid-vex5zuxs>The whole thing in one paragraph</a></li><li data-astro-cid-vex5zuxs><a href="#legend" data-astro-cid-vex5zuxs>Legend</a></li><li data-astro-cid-vex5zuxs><a href="#reading-order" data-astro-cid-vex5zuxs>Reading order</a></li><li data-astro-cid-vex5zuxs><a href="#plain-english-glossary" data-astro-cid-vex5zuxs>Plain-English glossary</a></li><li data-astro-cid-vex5zuxs><a href="#commonly-confused-pairs" data-astro-cid-vex5zuxs>Commonly confused pairs</a></li><li data-astro-cid-vex5zuxs><a href="#top-interview-questions" data-astro-cid-vex5zuxs>Top interview questions</a></li><li data-astro-cid-vex5zuxs><a href="#self-check" data-astro-cid-vex5zuxs>Self-check</a></li></ol></nav></aside><article class="card prose" data-astro-cid-vex5zuxs><blockquote>
+<p>The beginner’s entry point to <a href="../../">React Internals</a>. The other notes in this
+folder are deep and checked against the React source code. This note
+explains the same ideas <strong>in plain English</strong>: what to read first, what each
+confusing word means, and which parts actually matter in an interview.</p>
+</blockquote>
+<h2 id="the-whole-thing-in-one-paragraph">The whole thing in one paragraph</h2>
+<p>Think of a restaurant. A customer <strong>orders</strong> something (a click calls
+<code>setState</code>). The <strong>kitchen</strong> prepares the plate on the counter, where the
+customer can’t see it yet. The cook can stop halfway through to deal with a
+more urgent order, or throw the plate away and start again. This is the
+<strong>render phase</strong>. When the plate is ready, the <strong>waiter serves it in one
+go</strong>. The customer never gets half a plate. This is the <strong>commit phase</strong>.
+After serving, the staff do the follow-up chores: wiping the table, updating
+the bill. These are the <strong>effects</strong>.</p>
+<figure class="fig fig-restaurant"><div class="pipe"><div class="pipe-step pipe-trigger"><div class="pipe-icon">🧾</div><div class="pipe-head"><span class="pipe-num">1</span><span>Order</span></div><p>a click calls <code>setState</code></p><span class="pipe-tag">trigger</span></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-render"><div class="pipe-icon">🍳</div><div class="pipe-head"><span class="pipe-num">2</span><span>Kitchen</span></div><p>plate prepared off-screen; can pause or restart</p><span class="pipe-tag">render</span></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-commit"><div class="pipe-icon">🍽️</div><div class="pipe-head"><span class="pipe-num">3</span><span>Serve</span></div><p>the whole plate, in one go</p><span class="pipe-tag">commit</span></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-effects"><div class="pipe-icon">🧽</div><div class="pipe-head"><span class="pipe-num">4</span><span>Chores</span></div><p>wipe the table, update the bill</p><span class="pipe-tag">effects</span></div></div><figcaption>The restaurant analogy, mapped to React’s phases.</figcaption></figure>
+<figure class="fig fig-pipeline"><div class="pipe"><div class="pipe-step pipe-trigger"><div class="pipe-head"><span class="pipe-num">1</span><span>Trigger</span></div><ul><li><code>root.render()</code></li><li><code>setState</code> / <code>dispatch</code></li><li>lane picked, update queued</li></ul></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-render"><div class="pipe-head"><span class="pipe-num">2</span><span>Render phase</span></div><span class="pipe-tag">pure · interruptible</span><ul><li>call components (<code>beginWork</code>)</li><li>reconcile children (diff)</li><li>prepare DOM (<code>completeWork</code>)</li></ul></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-commit"><div class="pipe-head"><span class="pipe-num">3</span><span>Commit phase</span></div><span class="pipe-tag">sync · atomic</span><ul><li>before mutation</li><li>mutation: DOM writes</li><li>swap trees</li><li>layout: <code>useLayoutEffect</code>, refs</li></ul></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-paint"><div class="pipe-head"><span class="pipe-num">4</span><span>Browser</span></div><ul><li>style / layout</li><li>paint</li></ul></div><div class="pipe-arrow" aria-hidden="true">→</div><div class="pipe-step pipe-effects"><div class="pipe-head"><span class="pipe-num">5</span><span>After paint</span></div><ul><li>passive effects</li><li><code>useEffect</code></li></ul></div></div><figcaption>Every update goes through the same five steps. Only the render phase can pause.</figcaption></figure>
+<p>In real terms: <strong>your components return elements → React compares them with
+what it rendered last time (reconciliation) → it records that work on a tree
+of objects called fibers, using a loop it can pause → it applies all the DOM
+changes at once (commit) → the browser paints → <code>useEffect</code> runs.</strong> Every
+other topic in this folder is a detail of one step in that sentence.</p>
+<h2 id="legend">Legend</h2>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="lvl lvl-must" title="Must know"></span> <strong>Must know</strong></td>
+<td>Gets asked often. You should be able to explain it out loud without notes.</td>
+</tr>
+<tr>
+<td><span class="lvl lvl-good" title="Good to know"></span> <strong>Good to know</strong></td>
+<td>Rarely asked directly, but mentioning it turns an OK answer into a strong one.</td>
+</tr>
+<tr>
+<td><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>Skip for interviews</strong></td>
+<td>An implementation detail (function names, bit tricks, timing constants) or vague high-level talk. Interesting, but it won’t help you answer anything. Each one says <em>why</em> it’s skippable.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reading-order">Reading order</h2>
+<p>Read these in order. Each note builds on the ones before it.</p>
+<ol>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><a href="../render-and-commit/">Render and Commit</a></strong>: the big picture. Read the whole note.
+<ul>
+<li>Read for: what “rendering” really means, the phases, why render must be pure, what the “virtual DOM” actually is.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><a href="../reconciliation/">Reconciliation</a></strong>: how React decides what changed. Read the whole note.
+<ul>
+<li>Read for: the type rule, keys, why state is tied to position, why you never define components inside components.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><a href="../react-fiber/">React Fiber</a></strong>: the data structure everything runs on.
+<ul>
+<li>Read: the Interview Q&amp;A, “The problem”, “The tree is a linked list”, “Double buffering”.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> Skim: “What a fiber holds” (the constructor field by field). You only need to know that a fiber stores type, props, state, and links to parent/child/sibling.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><a href="../hooks-under-the-hood/">Hooks Under the Hood</a></strong>: where state lives and why the Rules of Hooks exist.
+<ul>
+<li>Read: the Interview Q&amp;A, “The hook list”, “Why conditional hooks break, concretely”, “<code>setState</code>: from call to render”.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> “Processing the queue during render” and rebasing: read once, don’t memorize.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><a href="../commit-phase-and-effects/">Commit Phase and Effects</a></strong>: when the DOM changes and when effects run.
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> Effect ordering (child before parent, cleanups before setups), and <code>useLayoutEffect</code> vs <code>useEffect</code>.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> The names of the sub-phases (before mutation → mutation → layout).</li>
+</ul>
+</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong><a href="../the-work-loop/">The Work Loop</a></strong>: how React walks the tree.
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> The “Bailouts” section: why a child re-renders when its parent does, and how <code>memo</code> and <code>children</code> stop that.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> The <code>beginWork</code>/<code>completeWork</code> code paths: these are function names, not concepts.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong><a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a></strong>: priorities and batching.
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> Batching (multiple <code>setState</code> calls → one render).</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> Lanes as priorities, and the fact that only transitions are interruptible.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> The min-heap, the 5ms slices, <code>MessageChannel</code>, starvation timeouts: scheduler engineering trivia.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong><a href="../child-reconciliation-algorithm/">Child Reconciliation Algorithm</a></strong>: how lists are diffed.
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> Why index keys break things (the Interview Q&amp;A covers it).</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> The <code>lastPlacedIndex</code> walkthroughs and the Vue LIS comparison: only useful if you’re asked to <em>implement</em> a diff.</li>
+</ul>
+</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong><a href="../a-state-update-end-to-end/">A State Update, End to End</a></strong>: one click traced through React. <strong>Read this last</strong>, as a review that ties everything together. Don’t memorize the ~30 function names (<span class="lvl lvl-skip" title="Skip for interviews"></span>); follow the story.</li>
+</ol>
+<blockquote>
+<p>If you only have one evening: read notes 1, 2, 4 and 5, plus the Bailouts
+section of note 6, then the <a href="#top-interview-questions">Top interview questions</a> below.</p>
+</blockquote>
+<h2 id="plain-english-glossary">Plain-English glossary</h2>
+<p>Each term has a short explanation, a label, and a link to the note that goes deeper.</p>
+<h3 id="the-pipeline-render-and-commit">The pipeline (<a href="../render-and-commit/">Render and Commit</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Element</strong>: the plain object JSX turns into, e.g. <code>{ type: 'button', props: {...} }</code>. It’s a <em>description</em> of what you want on screen, like a shopping list. It’s cheap, and a new one is created on every render, then thrown away.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Component</strong>: your function. React calls it, and it returns elements.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Render (phase)</strong>: React <em>calling your components</em> to find out what the UI should look like. It does <strong>not</strong> touch the DOM. “Re-render” means “your function ran again”, not “the screen was rebuilt”.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Commit (phase)</strong>: React applying the changes it found to the real DOM, all in one go.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Paint</strong>: the browser drawing pixels. This is the browser’s job, not React’s, and it happens after the commit.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Trigger</strong>: what starts an update. Either the first <code>root.render()</code>, or a state update (<code>setState</code>, a reducer <code>dispatch</code>, etc.).</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Pure render</strong>: your component must give the same output for the same input and must not change anything outside itself. React may call it twice (Strict Mode), several times (interrupted transitions) or not at all (bailouts).</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Virtual DOM</strong>: a marketing term. Precisely: React compares new <strong>elements</strong> against its <strong>previous fiber tree</strong>. It never reads the real DOM to find out what changed. If an interviewer says “virtual DOM”, it’s fine to say this.</li>
+</ul>
+<h3 id="reconciliation-reconciliation">Reconciliation (<a href="../reconciliation/">Reconciliation</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Reconciliation</strong>: the “spot the difference” step. React compares what your component returned now with what it returned last time, and decides what to keep, update, create or delete. It happens <em>during render</em>. The actual DOM changes happen later, in the commit.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Type rule</strong>: if an element’s type changes (<code>&lt;div&gt;</code> → <code>&lt;span&gt;</code>, or <code>ComponentA</code> → <code>ComponentB</code>), React throws away the whole old subtree, including its state, and builds a new one. It doesn’t look inside.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Key</strong>: a name tag for list items, so React can recognize “the same item” even if it moved. Without keys, React matches items by their position in the list.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>State is tied to position</strong>: React remembers state by <em>where a component sits in the tree</em> (plus its type and key), not by the variable name. Same type at the same spot keeps its state.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Remount</strong>: destroy and re-create a component, losing its state and DOM. Changing the <code>key</code> forces one, which is a common trick to reset a form.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>O(n) heuristic</strong>: a perfect tree diff costs O(n³). React gets O(n) by assuming that “different type means a different tree” and by trusting keys. Say this in one sentence and move on.</li>
+</ul>
+<h3 id="fiber-react-fiber">Fiber (<a href="../react-fiber/">React Fiber</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Fiber</strong>: a plain JS object, one for each mounted component or DOM element, that stores everything React knows about it: type, props, state, hooks, pending work, and links to its relatives. Unlike elements, fibers <em>persist</em> between renders. Think of it as the component’s “file” in React’s records.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why Fiber exists</strong>: the old “stack reconciler” used recursion, and you can’t pause recursion halfway through. Fiber turns the tree into linked objects that a loop walks one at a time, so React can <strong>pause, resume, prioritize, or throw away</strong> work.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Stack reconciler</strong>: the pre-React-16 engine. You only need to know it as “the one that couldn’t pause”.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Unit of work</strong>: processing one fiber. React can stop between any two units of work.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>child / sibling / return</strong>: the three pointers on each fiber: first child, next sibling, and parent (“return” because that’s where you return to when you’re done). Together they let a loop walk the tree without recursion.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>current vs workInProgress</strong>: <code>current</code> is the tree on screen right now. <code>workInProgress</code> is the draft being built during render. The user only ever sees <code>current</code>.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>alternate</strong>: the pointer connecting a fiber’s “current” version with its “draft” version.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Double buffering</strong>: borrowed from graphics. You draw the next frame off-screen, then swap. The commit makes the draft the new <code>current</code> by switching a single pointer, and the old tree is reused as scratch space for the next render.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>stateNode</strong>: the fiber field that points to the real DOM node (or class instance). It’s a field name, not a concept.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>flags / effect tags</strong>: bits on a fiber that say things like “insert me” or “update me”, so the commit knows what to do. It’s enough to know that render marks the work and commit performs it.</li>
+</ul>
+<h3 id="the-work-loop-the-work-loop">The work loop (<a href="../the-work-loop/">The Work Loop</a>)</h3>
+<ul>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Work loop</strong>: a <code>while</code> loop that processes one fiber at a time. It goes down to the children, then across to the siblings, then back up to the parent.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>performUnitOfWork / beginWork / completeWork</strong>: the internal functions for “process this fiber on the way down” and “finish it on the way up”. These are just names; describe the down-then-up walk instead.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Bailout</strong>: React <em>skipping</em> a component because it can tell nothing changed: the props object is the same, there’s no state update, and no context change. If nothing below it changed either, React skips the whole subtree.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why children re-render with the “same” props</strong>: a parent’s render creates new elements, which means a <strong>new props object</strong>, and React compares props by reference (<code>!==</code>). <code>memo</code> switches this to a shallow comparison of each prop. Passing elements in as <code>children</code> keeps the same object, so the child is skipped without needing <code>memo</code>.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>childLanes</strong>: a “something below me has pending work” flag on each fiber. It’s how React knows it can skip a whole subtree.</li>
+</ul>
+<h3 id="commit-and-effects-commit-phase-and-effects">Commit and effects (<a href="../commit-phase-and-effects/">Commit Phase and Effects</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Commit is synchronous</strong>: once React starts changing the DOM, it doesn’t stop, so you never see a half-updated UI. All the pausable work happens before the first DOM write.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Sub-phases</strong>: <em>before mutation</em> (read the DOM, e.g. <code>getSnapshotBeforeUpdate</code>) → <em>mutation</em> (change the DOM) → <em>swap</em> (<code>current</code> = the new tree) → <em>layout</em> (attach refs, run <code>useLayoutEffect</code>).</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>useLayoutEffect</strong>: runs after the DOM changes but <strong>before the browser paints</strong>. Use it to measure the DOM and fix up layout without a visible flicker. It blocks painting, so keep it short.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>useEffect</strong>: runs <strong>after paint</strong>, so it doesn’t delay what the user sees. It’s the default choice for data fetching, subscriptions and logging.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Effect order</strong>: children’s effects run before their parent’s. For each kind of effect, <strong>all cleanups run before any new setup</strong>.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Refs</strong>: <code>ref.current</code> is set during the layout sub-phase, which is why a ref is available inside <code>useLayoutEffect</code> and <code>useEffect</code> but not during render.</li>
+</ul>
+<h3 id="scheduling-scheduler-lanes-and-batching">Scheduling (<a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Batching</strong>: <code>setState</code> doesn’t render right away. It <em>queues</em> an update. All the updates made in the same event (or the same tick) are rendered together <strong>once</strong>. Since React 18 this happens everywhere: in promises, timeouts and native event listeners too (“automatic batching”).</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Transition</strong> (<code>startTransition</code>, <code>useTransition</code>): marks an update as “not urgent”. React renders it in the interruptible mode and will drop it if something urgent, like typing, comes in.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Priority / lane</strong>: every update gets a priority. A <strong>lane</strong> is React’s name for a priority, stored as one bit in a number so React can group and compare priorities cheaply. Say “lanes are how React represents update priority”, and that’s enough.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Not everything is concurrent</strong>: clicks, typing and normal updates render <strong>synchronously</strong>, without stopping. Only transitions, <code>useDeferredValue</code>, and a few internal cases use the interruptible loop. People get this wrong in interviews all the time.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Time slicing / yielding</strong>: in the interruptible mode, React works for a few milliseconds, then hands control back to the browser so it can handle input and paint, then continues.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Interruption</strong>: if an urgent update arrives in the middle of a transition render, React throws the draft away, handles the urgent update, and redoes the transition later. This is why render must be pure.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>Starvation protection</strong>: transitions that keep being interrupted eventually get forced through synchronously. It’s a safety net and doesn’t affect how you write code.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>Scheduler package internals</strong> (min-heap, 5ms slice, <code>MessageChannel</code>): engineering details of the task queue.</li>
+</ul>
+<h3 id="hooks-hooks-under-the-hood">Hooks (<a href="../hooks-under-the-hood/">Hooks Under the Hood</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Where state lives</strong>: on the component’s <strong>fiber</strong>, not in the function. Your function forgets everything when it returns. React hands the state back on every call.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Hook list</strong>: each fiber keeps its hooks in a linked list, <strong>in call order</strong>: the 1st <code>useState</code>, the 2nd <code>useEffect</code>, and so on. React matches hook calls to stored data <strong>by position, not by name</strong>.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why the Rules of Hooks exist</strong>: because of the point above. If an <code>if</code> skips one hook call, every later hook reads the wrong slot, which gives you swapped state or the error “Rendered more hooks than during the previous render”.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><code>setState</code> with a value vs an updater</strong>: <code>setCount(count + 1)</code> three times adds 1, because all three use the same stale <code>count</code>. <code>setCount(c =&gt; c + 1)</code> three times adds 3, because each one gets the previous result.</li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><code>setState</code> is stable</strong>: it’s created once on mount and bound to the fiber, so it never changes. That’s why it’s safe to leave out of dependency arrays.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Update queue</strong>: each state hook has a queue of pending updates, which React processes during the next render.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Eager bailout</strong>: if you set the same value (<code>Object.is</code>) and nothing else is pending, React often doesn’t schedule a render at all.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>Dispatcher</strong>: the internal object that makes <code>useState</code> mean “mount” on the first render and “update” after that. It’s also why calling a hook outside a component throws an error. It’s a mechanism, not something you’ll be asked about.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>memoizedState</strong>: the fiber field that holds the first hook. It’s just a field name.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>Rebasing</strong>: how low-priority updates are replayed after high-priority ones. It’s correct, but too deep for almost any interview.</li>
+</ul>
+<h3 id="list-diffing-child-reconciliation-algorithm">List diffing (<a href="../child-reconciliation-algorithm/">Child Reconciliation Algorithm</a>)</h3>
+<ul>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Index keys are dangerous</strong>: if you insert an item at the front, the old item 0’s state and DOM node get reused for the new item 0. Inputs, focus and local state end up on the wrong row.</li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Key Map</strong>: when items move, React puts the old children in a <code>Map</code> by key and looks up each new child in it.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>lastPlacedIndex</strong>: the trick React uses to decide which items to move. Moving the last item to the front costs n−1 moves. It’s only useful if you’re asked to implement a diff.</li>
+<li><span class="lvl lvl-skip" title="Skip for interviews"></span> <strong>LIS (Vue)</strong>: Vue computes the minimum number of moves and React doesn’t. It’s a fun fact, not interview material.</li>
+</ul>
+<h2 id="commonly-confused-pairs">Commonly confused pairs</h2>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>The difference in one line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Element vs fiber vs DOM node</td>
+<td>Element = a throwaway description (new every render). Fiber = React’s long-lived record of the instance. DOM node = the real thing on the page.</td>
+</tr>
+<tr>
+<td>Render vs commit vs paint</td>
+<td>Render = call components (no DOM). Commit = apply DOM changes. Paint = the browser draws the pixels.</td>
+</tr>
+<tr>
+<td>Rendering vs reconciliation</td>
+<td>Rendering is calling your component. Reconciliation is comparing its output with last time. Both happen in the render phase.</td>
+</tr>
+<tr>
+<td><code>useLayoutEffect</code> vs <code>useEffect</code></td>
+<td>Layout effect: before paint, blocks it. Effect: after paint, doesn’t block.</td>
+</tr>
+<tr>
+<td>current vs workInProgress</td>
+<td>On screen vs the draft being built. Commit swaps them.</td>
+</tr>
+<tr>
+<td>Batching vs time slicing</td>
+<td>Batching = many updates → one render. Time slicing = one render split into small chunks. They’re unrelated.</td>
+</tr>
+<tr>
+<td>Re-render vs remount</td>
+<td>Re-render = function runs again, state kept. Remount = destroyed and recreated, state lost.</td>
+</tr>
+<tr>
+<td>Sync vs concurrent rendering</td>
+<td>Sync = can’t be interrupted (default for clicks/typing). Concurrent = interruptible (transitions, deferred values).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="top-interview-questions">Top interview questions</h2>
+<p>Short answers you can say out loud. Each one links to the note that goes deeper.</p>
+<ol>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>What happens when you call <code>setState</code>?</strong>
+React queues an update on that component’s fiber, gives it a priority, and schedules a render. It doesn’t render immediately, so several updates get batched. During render it recalculates the state, compares the output, and in the commit it applies only what changed to the DOM. → <a href="../a-state-update-end-to-end/">A State Update, End to End</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>What is reconciliation?</strong>
+Comparing the new elements with the previous tree to decide what to keep, update, create or delete. It’s O(n) because of two rules: a different type means a new subtree, and keys identify list items. → <a href="../reconciliation/">Reconciliation</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>What is React Fiber and why was it introduced?</strong>
+It’s React’s engine since v16. Each component instance is a fiber object, linked into a tree that a loop processes one unit at a time. Unlike the old recursive engine, it can pause, prioritize and discard work, which is what makes concurrent features possible. → <a href="../react-fiber/">React Fiber</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>What are the render and commit phases?</strong>
+Render: React calls your components and works out what changed. It’s pure and can be interrupted. Commit: React applies the changes to the DOM synchronously, then runs layout effects. The browser paints, then <code>useEffect</code> runs. → <a href="../render-and-commit/">Render and Commit</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Is the virtual DOM compared with the real DOM?</strong>
+No. React compares new elements with its previous fiber tree, which it keeps in memory. It never reads the DOM to find differences. → <a href="../render-and-commit/">Render and Commit</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why do keys matter, and why are index keys bad?</strong>
+Keys let React match items across renders even when they move. With index keys, inserting or reordering makes React reuse the wrong item’s state and DOM node. → <a href="../child-reconciliation-algorithm/">Child Reconciliation Algorithm</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why can’t you call hooks conditionally?</strong>
+Hooks are stored in a list on the fiber and matched by call order. Skipping one shifts every later hook onto the wrong data. → <a href="../hooks-under-the-hood/">Hooks Under the Hood</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why does <code>setCount(count + 1)</code> three times only add one?</strong>
+All three calls use the same <code>count</code> from that render. Use the updater form, <code>setCount(c =&gt; c + 1)</code>, to chain them. → <a href="../hooks-under-the-hood/">Hooks Under the Hood</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong><code>useEffect</code> vs <code>useLayoutEffect</code>?</strong>
+Layout effects run after the DOM update but before paint, which is good for measuring and avoiding flicker. Regular effects run after paint and don’t block it. → <a href="../commit-phase-and-effects/">Commit Phase and Effects</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why does a child re-render when the parent re-renders?</strong>
+The parent creates a new props object every render, and React compares props by reference. Use <code>memo</code>, or pass the child in as <code>children</code> so the element is created higher up. → <a href="../the-work-loop/">The Work Loop</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>What is automatic batching?</strong>
+Several state updates in the same event or tick produce one render. Since React 18 this also works in promises, timeouts and native listeners. → <a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a></li>
+<li><span class="lvl lvl-must" title="Must know"></span> <strong>Why must components be pure?</strong>
+React may call them multiple times or throw a render away (Strict Mode, interrupted transitions). Side effects in render would run an unpredictable number of times. → <a href="../render-and-commit/">Render and Commit</a></li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Does React 18+ always render concurrently?</strong>
+No. Normal updates render synchronously. Only transitions and deferred values use the interruptible mode. → <a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a></li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>How does <code>startTransition</code> keep typing responsive?</strong>
+It marks the update as low priority. React renders it in small chunks, yields to the browser between them, and abandons it if an urgent update (a keystroke) arrives. → <a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a></li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>Why does changing a <code>key</code> reset a component’s state?</strong>
+State is tied to type, position and key. A new key means React treats it as a different component: it unmounts the old one and mounts a fresh one. → <a href="../reconciliation/">Reconciliation</a></li>
+<li><span class="lvl lvl-good" title="Good to know"></span> <strong>What’s double buffering in React?</strong>
+React builds the next tree as a draft (<code>workInProgress</code>) next to the visible one (<code>current</code>), and the commit swaps a pointer. The user never sees a half-built tree. → <a href="../react-fiber/">React Fiber</a></li>
+</ol>
+<h2 id="self-check">Self-check</h2>
+<p>Try to explain each of these out loud, without looking. If you get stuck, reread the linked note.</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Walk through what happens from a button click to the pixels changing. (<a href="../a-state-update-end-to-end/">A State Update, End to End</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> What’s the difference between an element and a fiber? (<a href="../react-fiber/">React Fiber</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Why is <code>&lt;Child /&gt;</code> defined inside <code>Parent</code> a bug? (<a href="../reconciliation/">Reconciliation</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Where does <code>useState</code> actually keep its value? (<a href="../hooks-under-the-hood/">Hooks Under the Hood</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> In what order do parent and child effects and cleanups run? (<a href="../commit-phase-and-effects/">Commit Phase and Effects</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Give two ways to stop a child from re-rendering when its parent does. (<a href="../the-work-loop/">The Work Loop</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Which updates can be interrupted, and why can the commit never be? (<a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a>)</li>
+<li class="task-list-item"><input type="checkbox" disabled> What goes wrong with index keys when you prepend an item? (<a href="../child-reconciliation-algorithm/">Child Reconciliation Algorithm</a>)</li>
+</ul>
+</article></div><nav class="wrap pager" aria-label="Notes" data-astro-cid-vex5zuxs><span data-astro-cid-vex5zuxs></span><a class="btn" href="/react-internals/notes/render-and-commit/" data-astro-cid-vex5zuxs>Render and Commit →</a></nav><footer class="site-foot wrap">Built from the <em>React Internals</em> notes in the Nexus vault · checked against the React 19.2.5 source.</footer><script type="module" src="/react-internals/_astro/Base.astro_astro_type_script_index_0_lang.DLJ85iFT.js"></script></body></html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="beginWork / completeWork, depth-first traversal without recursion, and bailouts."><link rel="icon" href="/react-internals/favicon.svg" type="image/svg+xml"><title>The Work Loop · React Internals</title><link rel="stylesheet" href="/react-internals/_astro/notes-meta.bWncZdHM.css"><style>.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:center;gap:32px;padding-top:clamp(28px,5vw,56px);padding-bottom:clamp(28px,4vw,44px);display:grid}@media (width<=760px){.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:1fr}.head-art[data-astro-cid-vex5zuxs]{display:none}}.back[data-astro-cid-vex5zuxs]{margin-bottom:22px;padding:.45em 1em;font-size:13.5px}.meta[data-astro-cid-vex5zuxs]{align-items:center;gap:12px;margin-bottom:12px;display:flex}.num[data-astro-cid-vex5zuxs]{color:var(--ink-soft);font-size:14px;font-weight:800}h1[data-astro-cid-vex5zuxs]{letter-spacing:-.05em;font-size:clamp(38px,6vw,68px);line-height:1}.summary[data-astro-cid-vex5zuxs]{max-width:56ch;color:var(--ink-soft);margin:16px 0 0;font-size:18px}.head-art[data-astro-cid-vex5zuxs]{padding:12px}.head-art[data-astro-cid-vex5zuxs] .panel[data-astro-cid-vex5zuxs] svg{width:100%;height:auto;display:block}.layout[data-astro-cid-vex5zuxs]{grid-template-columns:240px minmax(0,1fr);align-items:start;gap:28px;display:grid}@media (width<=1000px){.layout[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1fr)}.toc[data-astro-cid-vex5zuxs]{display:none}}.toc[data-astro-cid-vex5zuxs]{position:sticky;top:20px}.toc-card[data-astro-cid-vex5zuxs]{max-height:calc(100vh - 40px);padding:16px 16px 12px;overflow-y:auto}.toc-title[data-astro-cid-vex5zuxs]{text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-size:12px;font-weight:800}.toc[data-astro-cid-vex5zuxs] ol[data-astro-cid-vex5zuxs]{margin:0;padding:0;font-size:14px;line-height:1.35;list-style:none}.toc[data-astro-cid-vex5zuxs] li[data-astro-cid-vex5zuxs]{margin:0 0 8px}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]{font-weight:600;text-decoration:none}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]:hover{text-decoration:underline;text-decoration-color:var(--orange);text-decoration-thickness:2px}.source[data-astro-cid-vex5zuxs]{border-top:2px dashed var(--cream-deep);overflow-wrap:anywhere;margin-top:2.5em;padding-top:1em;font-size:14px}.pager[data-astro-cid-vex5zuxs]{flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:40px;display:flex}
+</style></head><body><header class="note-head wrap" data-astro-cid-vex5zuxs><div class="head-text" data-astro-cid-vex5zuxs><a class="btn btn-ghost back" href="/react-internals/" data-astro-cid-vex5zuxs>← All notes</a><div class="meta" data-astro-cid-vex5zuxs><span class="pill" data-astro-cid-vex5zuxs><span class="lvl lvl-good" data-astro-cid-vex5zuxs></span>Good to know</span><span class="num" data-astro-cid-vex5zuxs>Note 06</span></div><h1 data-astro-cid-vex5zuxs>The Work Loop</h1><p class="summary" data-astro-cid-vex5zuxs>beginWork / completeWork, depth-first traversal without recursion, and bailouts.</p></div><div class="head-art card" data-astro-cid-vex5zuxs><div class="panel" data-astro-cid-vex5zuxs><svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><line x1="0" y1="78" x2="240" y2="78" stroke="#2b2522" stroke-width="1.4"/><g fill="none" stroke="#2b2522" stroke-width="2.2"><path d="M70 92 A58 30 0 1 1 168 104"/></g><polygon points="168,104 156,110 172,94" fill="#ff8a1f" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="99.2,64.0 120.0,76.0 120.0,52.0 99.2,40.0" fill="#62c9bd" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="140.8,64.0 120.0,76.0 120.0,52.0 140.8,40.0" fill="#3a9d93" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="120.0,28.0 140.8,40.0 120.0,52.0 99.2,40.0" fill="#a6ece3" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><g stroke="#2b2522" stroke-width="1.3" stroke-linejoin="round"><line x1="58" y1="118" x2="58" y2="130"/><line x1="62" y1="118" x2="62" y2="130"/><polygon points="56,118 64,118 64,108 56,108" fill="#e58ccb"/><circle cx="60" cy="104" r="3.6" fill="#fff"/></g></svg></div></div></header><div class="wrap layout" data-astro-cid-vex5zuxs><aside class="toc" data-astro-cid-vex5zuxs><nav class="card toc-card" aria-label="On this page" data-astro-cid-vex5zuxs><p class="toc-title" data-astro-cid-vex5zuxs>On this page</p><ol data-astro-cid-vex5zuxs><li data-astro-cid-vex5zuxs><a href="#interview-qa" data-astro-cid-vex5zuxs>Interview Q&amp;A</a></li><li data-astro-cid-vex5zuxs><a href="#the-problem-walking-a-tree-without-the-call-stack" data-astro-cid-vex5zuxs>The problem: walking a tree without the call stack</a></li><li data-astro-cid-vex5zuxs><a href="#one-unit-of-work-begin-then-maybe-complete" data-astro-cid-vex5zuxs>One unit of work: begin, then maybe complete</a></li><li data-astro-cid-vex5zuxs><a href="#bailouts-how-react-skips-work" data-astro-cid-vex5zuxs>Bailouts: how React skips work</a></li><li data-astro-cid-vex5zuxs><a href="#the-work-loop-step-by-step" data-astro-cid-vex5zuxs>The work loop, step by step</a></li><li data-astro-cid-vex5zuxs><a href="#rules-and-caveats" data-astro-cid-vex5zuxs>Rules and caveats</a></li></ol></nav></aside><article class="card prose" data-astro-cid-vex5zuxs><blockquote>
+<p>How React walks the fiber tree during the render phase and decides which
+components to skip. Read from <code>workLoopSync</code>, <code>workLoopConcurrentByScheduler</code>,
+<code>performUnitOfWork</code>, <code>completeUnitOfWork</code>, <code>beginWork</code> and
+<code>bailoutOnAlreadyFinishedWork</code> in the React 19.2.5 build. Part of
+<a href="../../">React Internals</a>. It builds on <a href="../react-fiber/">React Fiber</a> and explains the mechanism
+behind the <em>React Performance</em> module’s optimizations. My own notes and
+clarifications are marked with <code>&gt; 💬</code>.</p>
+</blockquote>
+<h2 id="interview-qa">Interview Q&amp;A</h2>
+<details class="qa"><summary>How does React traverse the component tree?</summary>
+<p>Depth-first, with a loop instead of recursion. A single pointer,
+<code>workInProgress</code>, says which fiber to process next. <code>beginWork</code> handles a
+fiber on the way <strong>down</strong> (render it, reconcile its children, return the
+first child). When a fiber has no children, <code>completeWork</code> runs on the way
+<strong>up</strong>, then React moves to the <code>sibling</code>, or back to the <code>return</code> (parent)
+when there are no more siblings.</p>
+</details>
+<details class="qa"><summary>What does "bailout" mean?</summary>
+<p>React skipping work for a fiber because it can prove nothing changed:
+the same props object, no pending update on it, and no context change. If
+nothing below it has pending work either (<code>childLanes</code>), React skips the
+<strong>entire subtree</strong> in one step. In our example, when only <code>Counter</code>’s state
+changes, <code>App</code> and <code>Header</code> are never called.</p>
+</details>
+<details class="qa"><summary>Why does a child re-render when its parent re-renders, even with the same props?</summary>
+<p>Because the parent’s render creates a <strong>new element</strong>, so the child gets a
+<strong>new props object</strong>. React compares props with <code>!==</code>, not deeply, so
+<code>oldProps !== newProps</code> and the child renders. <code>memo</code> replaces that check with
+a shallow comparison of each prop. Passing the element in from above
+(<code>children</code>) keeps the same props object, so React bails out without <code>memo</code>.</p>
+</details>
+<details class="qa"><summary>How can rendering be interrupted?</summary>
+<p>The concurrent loop checks <code>shouldYield()</code> between units of work. If
+~5ms have passed, it returns, and the <code>workInProgress</code> pointer remembers
+where to resume. The sync loop never checks.</p>
+</details>
+<h2 id="the-problem-walking-a-tree-without-the-call-stack">The problem: walking a tree without the call stack</h2>
+<p>Recursion is the natural way to walk a tree, but recursion keeps its
+position on the JS call stack (<a href="../react-fiber/">React Fiber</a> explains why that’s a
+problem). Fiber stores the position in a <strong>variable</strong> instead. The whole
+render phase is these few lines:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> workLoopSync</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	while</span><span style="color:#24292E"> (workInProgress </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) </span><span style="color:#6F42C1">performUnitOfWork</span><span style="color:#24292E">(workInProgress)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> workLoopConcurrentByScheduler</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	while</span><span style="color:#24292E"> (workInProgress </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#D73A49"> &amp;&amp;</span><span style="color:#D73A49"> !</span><span style="color:#6F42C1">shouldYield</span><span style="color:#24292E">()) </span><span style="color:#6F42C1">performUnitOfWork</span><span style="color:#24292E">(workInProgress)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The only difference between synchronous and concurrent rendering is the
+<code>!shouldYield()</code> check. Which loop runs depends on the update’s priority.
+See <a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a>.</p>
+<h2 id="one-unit-of-work-begin-then-maybe-complete">One unit of work: begin, then maybe complete</h2>
+<p>From the source, with profiling removed:</p>
+<figure class="fig fig-workloop"><svg viewBox="0 0 680 300" class="diagram-svg" role="img" aria-label="Work loop flowchart"><defs><marker id="wl-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2b2522"/></marker></defs><path d="M253 70 H300" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><path d="M458 70 H510" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><path d="M570 38 V16 H175 V41" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><text x="372" y="11" text-anchor="middle" class="t-small t-bold">yes → go DOWN: workInProgress = child</text><path d="M570 102 V173" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><text x="580" y="142" text-anchor="start" class="t-small t-bold">no</text><path d="M492 200 H440" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><path d="M380 168 V130 H200 V99" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><text x="290" y="124" text-anchor="middle" class="t-small t-bold">yes → go ACROSS to sibling</text><path d="M322 200 H235" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><text x="278" y="192" text-anchor="middle" class="t-small t-bold">no → go UP</text><path d="M175 232 V270 H570 V229" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><text x="372" y="288" text-anchor="middle" class="t-small t-bold">no → complete the parent (bubble flags)</text><path d="M117 200 H88" fill="none" stroke="#2b2522" stroke-width="2" marker-end="url(#wl-ah)"/><text x="102" y="192" text-anchor="middle" class="t-small t-bold">yes</text><g><rect x="97" y="43" width="156" height="54" rx="10" fill="#fcf5e4" stroke="#2b2522" stroke-width="2"/><text x="175" y="68" text-anchor="middle" class="t-node">performUnitOfWork</text><text x="175" y="85" text-anchor="middle" class="t-small">one fiber</text></g><g><rect x="302" y="43" width="156" height="54" rx="10" fill="#f7c4e6" stroke="#2b2522" stroke-width="2"/><text x="380" y="68" text-anchor="middle" class="t-node">beginWork ↓</text><text x="380" y="85" text-anchor="middle" class="t-small">call it, or bail out</text></g><g><polygon points="570,38 628,70 570,102 512,70" fill="#ffe08a" stroke="#2b2522" stroke-width="2"/><text x="570" y="75" text-anchor="middle" class="t-node">child?</text></g><g><rect x="492" y="173" width="156" height="54" rx="10" fill="#a6ece3" stroke="#2b2522" stroke-width="2"/><text x="570" y="198" text-anchor="middle" class="t-node">completeWork ↑</text><text x="570" y="215" text-anchor="middle" class="t-small">create / flag DOM</text></g><g><polygon points="380,168 438,200 380,232 322,200" fill="#ffe08a" stroke="#2b2522" stroke-width="2"/><text x="380" y="205" text-anchor="middle" class="t-node">sibling?</text></g><g><polygon points="175,168 233,200 175,232 117,200" fill="#ffe08a" stroke="#2b2522" stroke-width="2"/><text x="175" y="205" text-anchor="middle" class="t-node">past root?</text></g><g><rect x="12" y="182" width="74" height="36" rx="18" fill="#ff7a00" stroke="#2b2522" stroke-width="2"/><text x="49" y="205" text-anchor="middle" class="t-node">commit</text></g></svg><figcaption>Down with <code>beginWork</code>, across to siblings, up with <code>completeWork</code>. No recursion: just one <code>workInProgress</code> pointer.</figcaption></figure>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> performUnitOfWork</span><span style="color:#24292E">(</span><span style="color:#E36209">unitOfWork</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> current</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> unitOfWork.alternate</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> next</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> beginWork</span><span style="color:#24292E">(current, unitOfWork, entangledRenderLanes)  </span><span style="color:#6A737D">// go DOWN</span></span>
+<span class="line"><span style="color:#24292E">	unitOfWork.memoizedProps </span><span style="color:#D73A49">=</span><span style="color:#24292E"> unitOfWork.pendingProps</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (next </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#6F42C1">		completeUnitOfWork</span><span style="color:#24292E">(unitOfWork)   </span><span style="color:#6A737D">// no child → finish this one and climb</span></span>
+<span class="line"><span style="color:#24292E">	} </span><span style="color:#D73A49">else</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#24292E">		workInProgress </span><span style="color:#D73A49">=</span><span style="color:#24292E"> next            </span><span style="color:#6A737D">// descend into the first child</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> completeUnitOfWork</span><span style="color:#24292E">(</span><span style="color:#E36209">unitOfWork</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> completedWork </span><span style="color:#D73A49">=</span><span style="color:#24292E"> unitOfWork</span></span>
+<span class="line"><span style="color:#D73A49">	do</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#D73A49">		const</span><span style="color:#005CC5"> returnFiber</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> completedWork.return</span></span>
+<span class="line"><span style="color:#D73A49">		const</span><span style="color:#005CC5"> next</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> completeWork</span><span style="color:#24292E">(completedWork.alternate, completedWork, entangledRenderLanes)</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (next </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) { workInProgress </span><span style="color:#D73A49">=</span><span style="color:#24292E"> next; </span><span style="color:#D73A49">return</span><span style="color:#24292E"> }   </span><span style="color:#6A737D">// rare: completeWork spawned more work</span></span>
+<span class="line"><span style="color:#D73A49">		const</span><span style="color:#005CC5"> sibling</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> completedWork.sibling</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (sibling </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) { workInProgress </span><span style="color:#D73A49">=</span><span style="color:#24292E"> sibling; </span><span style="color:#D73A49">return</span><span style="color:#24292E"> }  </span><span style="color:#6A737D">// go ACROSS</span></span>
+<span class="line"><span style="color:#24292E">		completedWork </span><span style="color:#D73A49">=</span><span style="color:#24292E"> returnFiber                                   </span><span style="color:#6A737D">// go UP</span></span>
+<span class="line"><span style="color:#24292E">		workInProgress </span><span style="color:#D73A49">=</span><span style="color:#24292E"> completedWork</span></span>
+<span class="line"><span style="color:#24292E">	} </span><span style="color:#D73A49">while</span><span style="color:#24292E"> (completedWork </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">	workInProgressRootExitStatus </span><span style="color:#D73A49">=</span><span style="color:#24292E"> RootCompleted   </span><span style="color:#6A737D">// climbed past the root: tree is done</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>beginWork</code> and <code>completeWork</code> split the per-fiber work:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>beginWork</code> (down)</th>
+<th><code>completeWork</code> (up)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Function component</td>
+<td>try to bail out, or call it (with hooks), then reconcile the returned children</td>
+<td>nothing much</td>
+</tr>
+<tr>
+<td>Host component (<code>div</code>)</td>
+<td>reconcile <code>props.children</code></td>
+<td><strong>mount:</strong> create the DOM node (<code>document.createElement</code>), append the already-completed child DOM nodes, set initial props. <strong>update:</strong> if <code>memoizedProps !== newProps</code>, flag <code>Update</code>. In React 19 the per-attribute diff happens later, in the commit (<code>commitUpdate</code>)</td>
+</tr>
+<tr>
+<td>Every fiber</td>
+<td>–</td>
+<td><strong>bubble</strong>: <code>subtreeFlags |= child.flags | child.subtreeFlags</code> so the commit can skip clean subtrees</td>
+</tr>
+<tr>
+<td>Returns</td>
+<td>first child fiber, or <code>null</code></td>
+<td>usually <code>null</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>On mount, the DOM tree is built bottom-up, detached from the document,
+during <code>completeWork</code>. The commit then inserts only the <strong>top</strong> new node.
+That’s one <code>appendChild</code> for a whole new subtree instead of one per node.</p>
+</blockquote>
+<h2 id="bailouts-how-react-skips-work">Bailouts: how React skips work</h2>
+<p>This is where all performance tricks end up. The start of <code>beginWork</code>,
+from the 19.2.5 source:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> (current </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (current.memoizedProps </span><span style="color:#D73A49">!==</span><span style="color:#24292E"> workInProgress.pendingProps </span><span style="color:#D73A49">||</span></span>
+<span class="line"><span style="color:#24292E">	    workInProgress.type </span><span style="color:#D73A49">!==</span><span style="color:#24292E"> current.type) {</span></span>
+<span class="line"><span style="color:#24292E">		didReceiveUpdate </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> true</span><span style="color:#6A737D">                          // props object changed → must render</span></span>
+<span class="line"><span style="color:#24292E">	} </span><span style="color:#D73A49">else</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (</span><span style="color:#D73A49">!</span><span style="color:#6F42C1">checkScheduledUpdateOrContext</span><span style="color:#24292E">(current, renderLanes) </span><span style="color:#D73A49">&amp;&amp;</span></span>
+<span class="line"><span style="color:#24292E">		    (workInProgress.flags </span><span style="color:#D73A49">&amp;</span><span style="color:#24292E"> DidCapture) </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> 0</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#24292E">			didReceiveUpdate </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> false</span></span>
+<span class="line"><span style="color:#D73A49">			return</span><span style="color:#6F42C1"> attemptEarlyBailoutIfNoScheduledUpdate</span><span style="color:#24292E">(current, workInProgress, renderLanes)</span></span>
+<span class="line"><span style="color:#24292E">		}</span></span>
+<span class="line"><span style="color:#6A737D">		// ...</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>checkScheduledUpdateOrContext</code> returns true if the fiber itself has an
+update in the lanes being rendered, or a context it reads has changed:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> checkScheduledUpdateOrContext</span><span style="color:#24292E">(</span><span style="color:#E36209">current</span><span style="color:#24292E">, </span><span style="color:#E36209">renderLanes</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> ((current.lanes </span><span style="color:#D73A49">&amp;</span><span style="color:#24292E"> renderLanes) </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> 0</span><span style="color:#24292E">) </span><span style="color:#D73A49">return</span><span style="color:#005CC5"> true</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> dependencies</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> current.dependencies</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> dependencies </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#D73A49"> &amp;&amp;</span><span style="color:#6F42C1"> checkIfContextChanged</span><span style="color:#24292E">(dependencies)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>If the fiber can bail out, <code>bailoutOnAlreadyFinishedWork</code> decides <strong>how
+much</strong> to skip:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> bailoutOnAlreadyFinishedWork</span><span style="color:#24292E">(</span><span style="color:#E36209">current</span><span style="color:#24292E">, </span><span style="color:#E36209">workInProgress</span><span style="color:#24292E">, </span><span style="color:#E36209">renderLanes</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> ((renderLanes </span><span style="color:#D73A49">&amp;</span><span style="color:#24292E"> workInProgress.childLanes) </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> 0</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#6A737D">		// (after checking for context changes propagated from above)</span></span>
+<span class="line"><span style="color:#D73A49">		return</span><span style="color:#005CC5"> null</span><span style="color:#6A737D">                // NOTHING below needs work → skip the whole subtree</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"><span style="color:#6A737D">	// something below does → clone the children (createWorkInProgress on each) and keep going</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> workInProgress.child</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>So there are three outcomes for each fiber:</p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Condition</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Render</strong></td>
+<td>new props object, or own state update, or context changed</td>
+<td>the component function runs, and children are reconciled</td>
+</tr>
+<tr>
+<td><strong>Bail out, continue</strong></td>
+<td>nothing changed here, but <code>childLanes</code> has work</td>
+<td>the component is <strong>not called</strong>. Its children are cloned and the walk continues down</td>
+</tr>
+<tr>
+<td><strong>Bail out, skip subtree</strong></td>
+<td>nothing changed here or below</td>
+<td><code>beginWork</code> returns <code>null</code>. The whole subtree is skipped in O(1)</td>
+</tr>
+</tbody>
+</table>
+<p><code>childLanes</code> is set for every queued update just before the render starts
+(<code>prepareFreshStack</code> → <code>finishQueueingConcurrentUpdates</code> →
+<code>markUpdateLaneFromFiberToRoot</code>). That ORs the lane into <code>fiber.lanes</code> and
+into <code>childLanes</code> of every ancestor up to the root. That trail of breadcrumbs is how React finds the one changed
+component without calling every component above it.</p>
+<h3 id="where-memo-fits">Where <code>memo</code> fits</h3>
+<p>A <code>memo</code> component whose parent re-rendered <em>does</em> get a new props object, so
+the <code>!==</code> check above says “changed”. <code>updateMemoComponent</code> /
+<code>updateSimpleMemoComponent</code> then run a second check,
+<code>shallowEqual(prevProps, nextProps)</code> (or your <code>arePropsEqual</code>), and bail out if
+it passes. See <em>Memoize Components</em>.</p>
+<h3 id="a-second-chance-after-rendering">A second chance after rendering</h3>
+<p>Even when a function component <em>does</em> run, if its hooks produced no change
+(the state updates all computed to <code>Object.is</code>-equal values), then
+<code>didReceiveUpdate</code> stays false and React calls <code>bailoutHooks</code> +
+<code>bailoutOnAlreadyFinishedWork</code>, discarding the output and skipping the
+children. This is why a component that sets the same state can render once
+and still not re-render its children.</p>
+<h2 id="the-work-loop-step-by-step">The work loop, step by step</h2>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="tsx"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> App</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> (</span></span>
+<span class="line"><span style="color:#24292E">		&lt;&gt;</span></span>
+<span class="line"><span style="color:#24292E">			&lt;</span><span style="color:#005CC5">Header</span><span style="color:#24292E"> /&gt;</span></span>
+<span class="line"><span style="color:#24292E">			&lt;</span><span style="color:#005CC5">Counter</span><span style="color:#24292E"> /&gt;</span></span>
+<span class="line"><span style="color:#24292E">		&lt;/&gt;</span></span>
+<span class="line"><span style="color:#24292E">	)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> Counter</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#24292E"> [</span><span style="color:#005CC5">n</span><span style="color:#24292E">, </span><span style="color:#005CC5">setN</span><span style="color:#24292E">] </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> useState</span><span style="color:#24292E">(</span><span style="color:#005CC5">0</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> &lt;</span><span style="color:#22863A">button</span><span style="color:#6F42C1"> onClick</span><span style="color:#D73A49">=</span><span style="color:#24292E">{() </span><span style="color:#D73A49">=&gt;</span><span style="color:#6F42C1"> setN</span><span style="color:#24292E">(n </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">)}&gt;{n}&lt;/</span><span style="color:#22863A">button</span><span style="color:#24292E">&gt;</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<figure class="fig anim fig-workloop-anim" data-anim><div class="anim-scn" data-anim-scn="0"  data-steps="[{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(HostRoot)&quot;,&quot;say&quot;:&quot;No own update, but &lt;code&gt;childLanes&lt;/code&gt; has Sync → clone the children and continue.&quot;,&quot;set&quot;:{&quot;HostRoot&quot;:&quot;bail hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(App)&quot;,&quot;say&quot;:&quot;Same props object, no update, &lt;code&gt;childLanes&lt;/code&gt; has Sync → &lt;b&gt;bail out, continue&lt;/b&gt;. &lt;code&gt;App()&lt;/code&gt; is not called.&quot;,&quot;set&quot;:{&quot;HostRoot&quot;:&quot;bail&quot;,&quot;App&quot;:&quot;bail hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(Fragment)&quot;,&quot;say&quot;:&quot;Same → bail out, continue down.&quot;,&quot;set&quot;:{&quot;App&quot;:&quot;bail&quot;,&quot;Fragment&quot;:&quot;bail hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(Header) → null&quot;,&quot;say&quot;:&quot;Same props, no update, &lt;code&gt;childLanes = 0&lt;/code&gt; → &lt;b&gt;skip the whole subtree&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;Fragment&quot;:&quot;bail&quot;,&quot;Header&quot;:&quot;skip hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;completeUnitOfWork(Header) → sibling&quot;,&quot;say&quot;:&quot;Nothing to complete. Go &lt;b&gt;across&lt;/b&gt; to the sibling.&quot;,&quot;set&quot;:{&quot;Header&quot;:&quot;skip hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(Counter) → Counter()&quot;,&quot;say&quot;:&quot;&lt;code&gt;lanes&lt;/code&gt; has Sync → &lt;b&gt;render&lt;/b&gt;: &lt;code&gt;Counter()&lt;/code&gt; runs, &lt;code&gt;useState&lt;/code&gt; → 1, reconcile &lt;code&gt;&amp;lt;button&amp;gt;&lt;/code&gt; → reuse its fiber.&quot;,&quot;set&quot;:{&quot;Header&quot;:&quot;skip&quot;,&quot;Counter&quot;:&quot;run hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(button)&quot;,&quot;say&quot;:&quot;New props object → reconcile its text child &lt;code&gt;\&quot;1\&quot;&lt;/code&gt;. Go &lt;b&gt;down&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;Counter&quot;:&quot;run&quot;,&quot;button&quot;:&quot;run hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(text) → null · completeWork(text)&quot;,&quot;say&quot;:&quot;No children. Text changed → flag &lt;code&gt;Update&lt;/code&gt;. Climb &lt;b&gt;up&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;button&quot;:&quot;run&quot;,&quot;text&quot;:&quot;done hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;completeWork(button)&quot;,&quot;say&quot;:&quot;New props → flag &lt;code&gt;Update&lt;/code&gt;. Bubble &lt;code&gt;subtreeFlags&lt;/code&gt; to the parent.&quot;,&quot;set&quot;:{&quot;text&quot;:&quot;done&quot;,&quot;button&quot;:&quot;done hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;completeWork × 4 → workInProgress = null&quot;,&quot;say&quot;:&quot;Bubble up to the root. Done: &lt;b&gt;only &lt;code&gt;Counter()&lt;/code&gt; ran&lt;/b&gt;, and the commit will only visit the flagged path.&quot;,&quot;set&quot;:{&quot;button&quot;:&quot;done&quot;,&quot;Counter&quot;:&quot;done hl&quot;,&quot;Fragment&quot;:&quot;done hl&quot;,&quot;App&quot;:&quot;done hl&quot;,&quot;HostRoot&quot;:&quot;done hl&quot;}}]" data-intro="The button was clicked; &lt;code&gt;setN(1)&lt;/code&gt; queued an update with &lt;code&gt;SyncLane&lt;/code&gt; and marked &lt;code&gt;childLanes&lt;/code&gt; up to the root."><div class="anim-stage"><div class="t-tree"><div class="t-branch"><div class="an node root" data-k="HostRoot"><span class="node-label" data-k="HostRoot-label">HostRoot</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="App"><span class="node-label" data-k="App-label">App</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="Fragment"><span class="node-label" data-k="Fragment-label">Fragment</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="Header"><span class="node-label" data-k="Header-label">Header</span></div></div></div><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="Counter"><span class="node-label" data-k="Counter-label">Counter</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node host" data-k="button"><span class="node-label" data-k="button-label">button</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node text" data-k="text"><span class="node-label" data-k="text-label">"1"</span></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div><div class="a-row" style="justify-content:center;margin-top:14px"><span class="an chip-a" data-s="bail">bailed out</span><span class="an chip-a" data-s="skip">skipped</span><span class="an chip-a" data-s="run">rendered</span><span class="an chip-a" data-s="done">completed</span></div></div><ol class="anim-print"><li><span class="anim-phase ph-render">render phase</span><code>beginWork(HostRoot)</code><span>No own update, but <code>childLanes</code> has Sync → clone the children and continue.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(App)</code><span>Same props object, no update, <code>childLanes</code> has Sync → <b>bail out, continue</b>. <code>App()</code> is not called.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(Fragment)</code><span>Same → bail out, continue down.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(Header) → null</code><span>Same props, no update, <code>childLanes = 0</code> → <b>skip the whole subtree</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>completeUnitOfWork(Header) → sibling</code><span>Nothing to complete. Go <b>across</b> to the sibling.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(Counter) → Counter()</code><span><code>lanes</code> has Sync → <b>render</b>: <code>Counter()</code> runs, <code>useState</code> → 1, reconcile <code>&lt;button&gt;</code> → reuse its fiber.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(button)</code><span>New props object → reconcile its text child <code>"1"</code>. Go <b>down</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(text) → null · completeWork(text)</code><span>No children. Text changed → flag <code>Update</code>. Climb <b>up</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>completeWork(button)</code><span>New props → flag <code>Update</code>. Bubble <code>subtreeFlags</code> to the parent.</span></li><li><span class="anim-phase ph-render">render phase</span><code>completeWork × 4 → workInProgress = null</code><span>Bubble up to the root. Done: <b>only <code>Counter()</code> ran</b>, and the commit will only visit the flagged path.</span></li></ol></div><div class="anim-hud" aria-live="polite"><div class="anim-call"><span class="anim-phase" hidden></span><code class="anim-fn" hidden></code></div><p class="anim-say"></p></div><div class="anim-controls"><button type="button" class="btn btn-ghost anim-btn" data-act="restart" aria-label="Restart">↺</button><button type="button" class="btn btn-ghost anim-btn" data-act="prev" aria-label="Previous step">←</button><button type="button" class="btn anim-play" data-act="play">▶ Play</button><button type="button" class="btn btn-ghost anim-btn" data-act="next" aria-label="Next step">→</button><div class="anim-progress"><div class="anim-bar"></div></div><span class="anim-count">0 / 0</span></div><figcaption>The work loop for one <code>setN(1)</code>: down with <code>beginWork</code>, across, and up with <code>completeWork</code>.</figcaption></figure>
+<p>The fiber tree is <code>HostRoot → App → Fragment → [Header, Counter → button → "0"]</code>. The button is clicked and <code>setN(1)</code> queues an update. When the render starts,
+<code>Counter.lanes</code> gets <code>SyncLane</code>, and so do the <code>childLanes</code> of Fragment, App
+and HostRoot.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th><code>workInProgress</code></th>
+<th>Call</th>
+<th>Decision</th>
+<th>Next</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>HostRoot</td>
+<td><code>beginWork</code></td>
+<td>no own update, <code>childLanes</code> has Sync → clone children</td>
+<td>App</td>
+</tr>
+<tr>
+<td>2</td>
+<td>App</td>
+<td><code>beginWork</code></td>
+<td>same props object (<code>null</code> props, cloned), no update, <code>childLanes</code> has Sync → <strong>bail out, continue</strong> (App not called)</td>
+<td>Fragment</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Fragment</td>
+<td><code>beginWork</code></td>
+<td>same → bail out, continue</td>
+<td>Header</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Header</td>
+<td><code>beginWork</code></td>
+<td>same props, no update, <code>childLanes</code> = 0 → <strong>skip subtree</strong> → <code>null</code></td>
+<td>–</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Header</td>
+<td><code>completeUnitOfWork</code></td>
+<td>nothing to complete → sibling</td>
+<td>Counter</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Counter</td>
+<td><code>beginWork</code></td>
+<td><code>lanes</code> has Sync → <strong>render</strong>: <code>Counter()</code> runs, <code>useState</code> → 1, reconcile <code>&lt;button&gt;</code> → reuse fiber, new props</td>
+<td>button</td>
+</tr>
+<tr>
+<td>7</td>
+<td>button</td>
+<td><code>beginWork</code></td>
+<td>new props object → reconcile its text child <code>"1"</code></td>
+<td>text</td>
+</tr>
+<tr>
+<td>8</td>
+<td>text</td>
+<td><code>beginWork</code> → <code>null</code>, then <code>completeWork</code></td>
+<td>text changed → flag <code>Update</code></td>
+<td>back up</td>
+</tr>
+<tr>
+<td>9</td>
+<td>button</td>
+<td><code>completeWork</code></td>
+<td>new props object → flag <code>Update</code> (the commit will find that only <code>onClick</code> changed, which React stores on the node rather than as an attribute). Bubble <code>subtreeFlags</code></td>
+<td>up</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Counter → Fragment → App → HostRoot</td>
+<td><code>completeWork</code> each</td>
+<td>bubble <code>subtreeFlags</code></td>
+<td>done</td>
+</tr>
+</tbody>
+</table>
+<p>Result: only <code>Counter()</code> ran. The commit walks down only where
+<code>subtreeFlags</code> is set and updates one text node (and the button’s stored props).</p>
+<blockquote>
+<p>Step 2 is the answer to “why doesn’t <code>App</code> re-render when <code>Counter</code>’s
+state changes?” Updates start at the component that owns the state, and
+everything above it bails out.</p>
+</blockquote>
+<h3 id="yielding-in-the-concurrent-loop">Yielding in the concurrent loop</h3>
+<p>If this update were a transition, the loop would be
+<code>workLoopConcurrentByScheduler</code>. After each <code>performUnitOfWork</code>,
+<code>shouldYield()</code> checks whether the current slice has used ~5ms. If so, the
+loop exits, <code>workInProgress</code> still points at, say, the button fiber, and
+React asks the Scheduler to call it back. The next slice resumes at exactly
+that fiber. If a higher-priority update arrived in between, React instead
+throws the work-in-progress away (<code>prepareFreshStack</code>) and starts over from
+the root with the new lanes.</p>
+<h2 id="rules-and-caveats">Rules and caveats</h2>
+<ul>
+<li><strong>Updates start where the state lives.</strong> Keep state as low as possible so
+fewer components sit between it and the fibers that read it.</li>
+<li><strong>Props are compared by reference.</strong> A new JSX element means a new props
+object, which means a render unless <code>memo</code> says otherwise.</li>
+<li><strong>Reusing an element skips it for free.</strong> <code>children</code> passed from a parent
+that didn’t re-render carry the <em>same</em> props object, so they bail out.
+This is the basis of <em>Element Optimization</em> and <em>Provider Component</em>.</li>
+<li><strong>Context bypasses bailouts.</strong> A fiber that reads a changed context renders
+even if its parent bailed out and its props are identical
+(<em>Optimize Context</em>).</li>
+<li><strong>Rendering ≠ committing.</strong> The loop can run a component and then discard
+the result (bailout after render, abandoned transitions).</li>
+</ul>
+<h3 id="sources">Sources</h3>
+<ul>
+<li>React 19.2.5 source: <code>workLoopSync</code>, <code>workLoopConcurrentByScheduler</code>, <code>performUnitOfWork</code>, <code>completeUnitOfWork</code>, <code>beginWork</code>, <code>checkScheduledUpdateOrContext</code>, <code>bailoutOnAlreadyFinishedWork</code>, <code>markUpdateLaneFromFiberToRoot</code></li>
+<li><a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js">React source: <code>ReactFiberWorkLoop.js</code></a> and <a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberBeginWork.js"><code>ReactFiberBeginWork.js</code></a></li>
+<li><a href="https://github.com/acdlite/react-fiber-architecture">Andrew Clark: React Fiber Architecture</a></li>
+</ul>
+<p class="source" data-astro-cid-vex5zuxs>Primary source: <a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js" data-astro-cid-vex5zuxs>github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js</a></p></article></div><nav class="wrap pager" aria-label="Notes" data-astro-cid-vex5zuxs><a class="btn btn-ghost" href="/react-internals/notes/commit-phase-and-effects/" data-astro-cid-vex5zuxs>← Commit Phase and Effects</a><a class="btn" href="/react-internals/notes/scheduler-lanes-and-batching/" data-astro-cid-vex5zuxs>Scheduler, Lanes and Batching →</a></nav><footer class="site-foot wrap">Built from the <em>React Internals</em> notes in the Nexus vault · checked against the React 19.2.5 source.</footer><script type="module" src="/react-internals/_astro/Base.astro_astro_type_script_index_0_lang.DLJ85iFT.js"></script></body></html>

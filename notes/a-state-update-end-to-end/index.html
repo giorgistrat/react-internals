@@ -1,0 +1,257 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="One click traced through ~30 real React functions, from the native event to paint and effects."><link rel="icon" href="/react-internals/favicon.svg" type="image/svg+xml"><title>A State Update, End to End · React Internals</title><link rel="stylesheet" href="/react-internals/_astro/notes-meta.bWncZdHM.css"><style>.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:center;gap:32px;padding-top:clamp(28px,5vw,56px);padding-bottom:clamp(28px,4vw,44px);display:grid}@media (width<=760px){.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:1fr}.head-art[data-astro-cid-vex5zuxs]{display:none}}.back[data-astro-cid-vex5zuxs]{margin-bottom:22px;padding:.45em 1em;font-size:13.5px}.meta[data-astro-cid-vex5zuxs]{align-items:center;gap:12px;margin-bottom:12px;display:flex}.num[data-astro-cid-vex5zuxs]{color:var(--ink-soft);font-size:14px;font-weight:800}h1[data-astro-cid-vex5zuxs]{letter-spacing:-.05em;font-size:clamp(38px,6vw,68px);line-height:1}.summary[data-astro-cid-vex5zuxs]{max-width:56ch;color:var(--ink-soft);margin:16px 0 0;font-size:18px}.head-art[data-astro-cid-vex5zuxs]{padding:12px}.head-art[data-astro-cid-vex5zuxs] .panel[data-astro-cid-vex5zuxs] svg{width:100%;height:auto;display:block}.layout[data-astro-cid-vex5zuxs]{grid-template-columns:240px minmax(0,1fr);align-items:start;gap:28px;display:grid}@media (width<=1000px){.layout[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1fr)}.toc[data-astro-cid-vex5zuxs]{display:none}}.toc[data-astro-cid-vex5zuxs]{position:sticky;top:20px}.toc-card[data-astro-cid-vex5zuxs]{max-height:calc(100vh - 40px);padding:16px 16px 12px;overflow-y:auto}.toc-title[data-astro-cid-vex5zuxs]{text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-size:12px;font-weight:800}.toc[data-astro-cid-vex5zuxs] ol[data-astro-cid-vex5zuxs]{margin:0;padding:0;font-size:14px;line-height:1.35;list-style:none}.toc[data-astro-cid-vex5zuxs] li[data-astro-cid-vex5zuxs]{margin:0 0 8px}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]{font-weight:600;text-decoration:none}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]:hover{text-decoration:underline;text-decoration-color:var(--orange);text-decoration-thickness:2px}.source[data-astro-cid-vex5zuxs]{border-top:2px dashed var(--cream-deep);overflow-wrap:anywhere;margin-top:2.5em;padding-top:1em;font-size:14px}.pager[data-astro-cid-vex5zuxs]{flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:40px;display:flex}
+</style></head><body><header class="note-head wrap" data-astro-cid-vex5zuxs><div class="head-text" data-astro-cid-vex5zuxs><a class="btn btn-ghost back" href="/react-internals/" data-astro-cid-vex5zuxs>← All notes</a><div class="meta" data-astro-cid-vex5zuxs><span class="pill" data-astro-cid-vex5zuxs><span class="lvl lvl-good" data-astro-cid-vex5zuxs></span>Good to know</span><span class="num" data-astro-cid-vex5zuxs>Note 09</span></div><h1 data-astro-cid-vex5zuxs>A State Update, End to End</h1><p class="summary" data-astro-cid-vex5zuxs>One click traced through ~30 real React functions, from the native event to paint and effects.</p></div><div class="head-art card" data-astro-cid-vex5zuxs><div class="panel" data-astro-cid-vex5zuxs><svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><line x1="0" y1="78" x2="240" y2="78" stroke="#2b2522" stroke-width="1.4"/><g stroke="#2b2522" stroke-width="1.8" stroke-linejoin="round"><line x1="36" y1="56" x2="54" y2="64"/><line x1="44" y1="46" x2="60" y2="56"/><line x1="56" y1="40" x2="66" y2="50"/><polygon points="72,70 196,96 120,88" fill="#f2f2f2"/><polygon points="120,88 196,96 132,108" fill="#efe3c8"/><polygon points="72,70 120,88 108,96" fill="#2b2522"/></g></svg></div></div></header><div class="wrap layout" data-astro-cid-vex5zuxs><aside class="toc" data-astro-cid-vex5zuxs><nav class="card toc-card" aria-label="On this page" data-astro-cid-vex5zuxs><p class="toc-title" data-astro-cid-vex5zuxs>On this page</p><ol data-astro-cid-vex5zuxs><li data-astro-cid-vex5zuxs><a href="#the-app" data-astro-cid-vex5zuxs>The app</a></li><li data-astro-cid-vex5zuxs><a href="#render-trace-clicking-the-button-once" data-astro-cid-vex5zuxs>Render trace: clicking the button once</a></li><li data-astro-cid-vex5zuxs><a href="#contrast-the-same-click-inside-starttransition" data-astro-cid-vex5zuxs>Contrast: the same click inside startTransition</a></li><li data-astro-cid-vex5zuxs><a href="#contrast-setcountcount-with-the-same-value" data-astro-cid-vex5zuxs>Contrast: setCount(count) with the same value</a></li></ol></nav></aside><article class="card prose" data-astro-cid-vex5zuxs><blockquote>
+<p>A line-by-line execution trace of one click through React 19.2.5, naming
+the real functions in <code>react-dom-client.development.js</code> at each step. This
+note is about <strong>invocation order</strong>. The <em>concepts</em> are explained in
+<a href="../render-and-commit/">Render and Commit</a>, <a href="../reconciliation/">Reconciliation</a>, <a href="../react-fiber/">React Fiber</a>,
+<a href="../the-work-loop/">The Work Loop</a>, <a href="../commit-phase-and-effects/">Commit Phase and Effects</a>,
+<a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a> and <a href="../hooks-under-the-hood/">Hooks Under the Hood</a>. Part of
+<a href="../../">React Internals</a>.</p>
+</blockquote>
+<h2 id="the-app">The app</h2>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="tsx"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> App</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> (</span></span>
+<span class="line"><span style="color:#24292E">		&lt;</span><span style="color:#22863A">main</span><span style="color:#24292E">&gt;</span></span>
+<span class="line"><span style="color:#24292E">			&lt;</span><span style="color:#005CC5">Header</span><span style="color:#24292E"> /&gt;</span></span>
+<span class="line"><span style="color:#24292E">			&lt;</span><span style="color:#005CC5">Counter</span><span style="color:#24292E"> /&gt;</span></span>
+<span class="line"><span style="color:#24292E">		&lt;/</span><span style="color:#22863A">main</span><span style="color:#24292E">&gt;</span></span>
+<span class="line"><span style="color:#24292E">	)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> Header</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> &lt;</span><span style="color:#22863A">h1</span><span style="color:#24292E">&gt;Clicks&lt;/</span><span style="color:#22863A">h1</span><span style="color:#24292E">&gt;</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> Counter</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#24292E"> [</span><span style="color:#005CC5">count</span><span style="color:#24292E">, </span><span style="color:#005CC5">setCount</span><span style="color:#24292E">] </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> useState</span><span style="color:#24292E">(</span><span style="color:#005CC5">0</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> buttonRef</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> useRef</span><span style="color:#24292E">&lt;</span><span style="color:#6F42C1">HTMLButtonElement</span><span style="color:#24292E">&gt;(</span><span style="color:#005CC5">null</span><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1">	useLayoutEffect</span><span style="color:#24292E">(() </span><span style="color:#D73A49">=&gt;</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#24292E">		buttonRef.current</span><span style="color:#D73A49">!</span><span style="color:#24292E">.style.width </span><span style="color:#D73A49">=</span><span style="color:#032F62"> `${</span><span style="color:#005CC5">40</span><span style="color:#D73A49"> +</span><span style="color:#24292E"> count</span><span style="color:#D73A49"> *</span><span style="color:#005CC5"> 10</span><span style="color:#032F62">}px`</span></span>
+<span class="line"><span style="color:#24292E">	}, [count])</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1">	useEffect</span><span style="color:#24292E">(() </span><span style="color:#D73A49">=&gt;</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#24292E">		document.title </span><span style="color:#D73A49">=</span><span style="color:#032F62"> `Clicks: ${</span><span style="color:#24292E">count</span><span style="color:#032F62">}`</span></span>
+<span class="line"><span style="color:#24292E">	}, [count])</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> (</span></span>
+<span class="line"><span style="color:#24292E">		&lt;</span><span style="color:#22863A">button</span><span style="color:#6F42C1"> ref</span><span style="color:#D73A49">=</span><span style="color:#24292E">{buttonRef} </span><span style="color:#6F42C1">onClick</span><span style="color:#D73A49">=</span><span style="color:#24292E">{() </span><span style="color:#D73A49">=&gt;</span><span style="color:#6F42C1"> setCount</span><span style="color:#24292E">(count </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">)}&gt;</span></span>
+<span class="line"><span style="color:#24292E">			{count}</span></span>
+<span class="line"><span style="color:#24292E">		&lt;/</span><span style="color:#22863A">button</span><span style="color:#24292E">&gt;</span></span>
+<span class="line"><span style="color:#24292E">	)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The fiber tree after mount (<code>current</code>), with the hook list on <code>Counter</code>:</p>
+<figure class="fig fig-e2e-tree"><div class="tree-list"><div class="tl" style="--d:0"><span class="tl-n tl-root">HostRoot</span></div><div class="tl" style="--d:1"><span class="tl-n tl-comp">App</span></div><div class="tl" style="--d:2"><span class="tl-n tl-host">main</span></div><div class="tl" style="--d:3"><span class="tl-n tl-comp">Header</span></div><div class="tl" style="--d:4"><span class="tl-n tl-host">h1</span> → <span class="tl-n tl-text">"Clicks"</span></div><div class="tl" style="--d:3"><span class="tl-n tl-comp tl-hot">Counter</span></div><div class="tl" style="--d:4"><span class="tl-n tl-host">button</span> → <span class="tl-n tl-text">"0"</span></div></div><div class="nested"><div class="chain"><div class="chain-start"><code>Counter</code> fiber<small>.memoizedState</small></div><span class="chain-arrow">→</span><div class="chain-node"><span class="chain-idx">#1</span><b>useState</b><code>0</code><small>.next</small></div><span class="chain-arrow">→</span><div class="chain-node"><span class="chain-idx">#2</span><b>useRef</b><code>{ current: &lt;button&gt; }</code><small>.next</small></div><span class="chain-arrow">→</span><div class="chain-node"><span class="chain-idx">#3</span><b>useLayoutEffect</b><code>deps [0]</code><small>.next</small></div><span class="chain-arrow">→</span><div class="chain-node"><span class="chain-idx">#4</span><b>useEffect</b><code>deps [0]</code><small>.next</small></div><span class="chain-arrow">→</span><div class="chain-null">null</div></div></div><figcaption>The <code>current</code> fiber tree after mount, with <code>Counter</code>’s hook list.</figcaption></figure>
+<h2 id="render-trace-clicking-the-button-once">Render trace: clicking the button once</h2>
+<figure class="fig anim fig-e2e-anim" data-anim><div class="anim-scn" data-anim-scn="0"  data-steps="[{&quot;phase&quot;:&quot;event&quot;,&quot;fn&quot;:&quot;dispatchDiscreteEvent(\&quot;click\&quot;) → onClick&quot;,&quot;say&quot;:&quot;One listener on the root container catches the click, finds the button’s fiber and calls your &lt;code&gt;onClick&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;button&quot;:&quot;hl&quot;}},{&quot;phase&quot;:&quot;schedule&quot;,&quot;fn&quot;:&quot;dispatchSetState → requestUpdateLane() = SyncLane&quot;,&quot;say&quot;:&quot;A discrete event, so &lt;code&gt;SyncLane&lt;/code&gt;. The eager check: 1 ≠ 0, so a render is needed.&quot;,&quot;set&quot;:{&quot;button&quot;:&quot;&quot;,&quot;lane&quot;:&quot;upd&quot;,&quot;queue&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;lane&quot;:&quot;lane: SyncLane&quot;,&quot;queue&quot;:&quot;Counter queue: [1]&quot;}},{&quot;phase&quot;:&quot;schedule&quot;,&quot;fn&quot;:&quot;markUpdateLaneFromFiberToRoot&quot;,&quot;say&quot;:&quot;&lt;code&gt;Counter.lanes |= Sync&lt;/code&gt;, and every ancestor gets &lt;code&gt;childLanes |= Sync&lt;/code&gt;: a trail back from the root.&quot;,&quot;set&quot;:{&quot;lane&quot;:&quot;&quot;,&quot;queue&quot;:&quot;&quot;,&quot;counter-flag&quot;:&quot;&quot;,&quot;main-flag&quot;:&quot;&quot;,&quot;app-flag&quot;:&quot;&quot;,&quot;root-flag&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;counter-flag&quot;:&quot;lanes&quot;,&quot;main-flag&quot;:&quot;childLanes&quot;,&quot;app-flag&quot;:&quot;childLanes&quot;,&quot;root-flag&quot;:&quot;childLanes&quot;}},{&quot;phase&quot;:&quot;schedule&quot;,&quot;fn&quot;:&quot;ensureRootIsScheduled → queueMicrotask&quot;,&quot;say&quot;:&quot;The handler returns. Nothing has rendered yet.&quot;,&quot;set&quot;:{&quot;micro&quot;:&quot;on&quot;},&quot;txt&quot;:{&quot;micro&quot;:&quot;microtask: scheduled&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;performSyncWorkOnRoot → workLoopSync · beginWork(HostRoot, App, main)&quot;,&quot;say&quot;:&quot;The microtask renders. HostRoot, App and main only have &lt;code&gt;childLanes&lt;/code&gt; → &lt;b&gt;bail out&lt;/b&gt; and continue down. &lt;code&gt;App()&lt;/code&gt; is not called.&quot;,&quot;set&quot;:{&quot;micro&quot;:&quot;done&quot;,&quot;root&quot;:&quot;bail&quot;,&quot;app&quot;:&quot;bail&quot;,&quot;main&quot;:&quot;bail&quot;,&quot;root-flag&quot;:&quot;ghost&quot;,&quot;app-flag&quot;:&quot;ghost&quot;,&quot;main-flag&quot;:&quot;ghost&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;beginWork(Header) → null&quot;,&quot;say&quot;:&quot;&lt;code&gt;Header&lt;/code&gt; has no work at all (&lt;code&gt;childLanes === 0&lt;/code&gt;): the whole subtree is &lt;b&gt;skipped&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;header&quot;:&quot;skip&quot;,&quot;h1&quot;:&quot;skip&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;Counter() → updateReducer → count = 1&quot;,&quot;say&quot;:&quot;Counter has its own lane → it &lt;b&gt;renders&lt;/b&gt;. Both effects’ deps changed (&lt;code&gt;[0]&lt;/code&gt; → &lt;code&gt;[1]&lt;/code&gt;), so they are flagged.&quot;,&quot;set&quot;:{&quot;counter&quot;:&quot;run hl&quot;,&quot;counter-flag&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;counter-sub&quot;:&quot;count: 1&quot;,&quot;counter-flag&quot;:&quot;Update · Passive&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;useFiber(button) · completeWork(button) → markUpdate&quot;,&quot;say&quot;:&quot;The button fiber is reused with new props and flagged &lt;b&gt;Update&lt;/b&gt;. Then &lt;code&gt;completeWork&lt;/code&gt; climbs back up, bubbling flags.&quot;,&quot;set&quot;:{&quot;counter&quot;:&quot;run&quot;,&quot;button&quot;:&quot;upd&quot;,&quot;button-flag&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;button-sub&quot;:&quot;\&quot;1\&quot;&quot;,&quot;button-flag&quot;:&quot;Update&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitMutationEffects → commitUpdate(button)&quot;,&quot;say&quot;:&quot;Commit, mutation: only the flagged path is visited. The text changes from 0 to 1. Then &lt;code&gt;root.current = finishedWork&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;button&quot;:&quot;done&quot;,&quot;txt&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;txt&quot;:&quot;1&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitLayoutEffects → useLayoutEffect&quot;,&quot;say&quot;:&quot;Layout effect: &lt;code&gt;buttonRef.current.style.width = '50px'&lt;/code&gt;. Still before paint.&quot;,&quot;set&quot;:{&quot;txt&quot;:&quot;&quot;,&quot;w&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;w&quot;:&quot;50px&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;flushPendingEffects() (SyncLane) → useEffect&quot;,&quot;say&quot;:&quot;For a discrete update, passive effects are flushed &lt;b&gt;synchronously&lt;/b&gt; at the end of the commit: &lt;code&gt;document.title&lt;/code&gt; updates.&quot;,&quot;set&quot;:{&quot;w&quot;:&quot;&quot;,&quot;title&quot;:&quot;upd&quot;,&quot;counter&quot;:&quot;done&quot;},&quot;txt&quot;:{&quot;title&quot;:&quot;Clicks: 1&quot;}},{&quot;phase&quot;:&quot;paint&quot;,&quot;fn&quot;:&quot;microtask ends → style · layout · paint&quot;,&quot;say&quot;:&quot;Finally the browser paints: the user sees &lt;b&gt;1&lt;/b&gt; in a 50px button. Only &lt;code&gt;Counter()&lt;/code&gt; ran, and there were 2 DOM writes.&quot;,&quot;set&quot;:{&quot;title&quot;:&quot;&quot;,&quot;txt&quot;:&quot;ok&quot;,&quot;w&quot;:&quot;ok&quot;}}]" data-intro="The app from above. The user clicks the button once."><div class="anim-stage"><div class="a-cols"><div class="a-panel wide"><div class="a-panel-title">fiber tree</div><div class="t-tree"><div class="t-branch"><div class="an node root" data-k="root"><span class="node-label" data-k="root-label">HostRoot</span><span class="an flag" data-k="root-flag" data-s="ghost">flag</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="app"><span class="node-label" data-k="app-label">App</span><span class="an flag" data-k="app-flag" data-s="ghost">flag</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node host" data-k="main"><span class="node-label" data-k="main-label">main</span><span class="an flag" data-k="main-flag" data-s="ghost">flag</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="header"><span class="node-label" data-k="header-label">Header</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node host" data-k="h1"><span class="node-label" data-k="h1-label">h1</span></div></div></div></div></div></div><div class="t-kid"><div class="t-branch"><div class="an node comp" data-k="counter"><span class="node-label" data-k="counter-label">Counter</span><small data-k="counter-sub">count: 0</small><span class="an flag" data-k="counter-flag" data-s="ghost">flag</span></div><div class="t-kids"><div class="t-kid"><div class="t-branch"><div class="an node host" data-k="button"><span class="node-label" data-k="button-label">button</span><small data-k="button-sub">"0"</small><span class="an flag" data-k="button-flag" data-s="ghost">flag</span></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div><div class="a-panel "><div class="a-panel-title">React</div><div class="a-col"><span class="an chip-a" data-k="lane">lane: –</span><span class="an chip-a" data-k="queue">Counter queue: empty</span><span class="an chip-a" data-k="micro">microtask: none</span></div></div><div class="a-panel "><div class="a-panel-title">screen</div><div class="a-dom">&lt;button style="width: <span class="an" data-k="w">40px</span>"&gt;<span class="an" data-k="txt">0</span>&lt;/button&gt;<br>document.title = "<span class="an" data-k="title">Clicks: 0</span>"</div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-event">event</span><code>dispatchDiscreteEvent("click") → onClick</code><span>One listener on the root container catches the click, finds the button’s fiber and calls your <code>onClick</code>.</span></li><li><span class="anim-phase ph-schedule">schedule</span><code>dispatchSetState → requestUpdateLane() = SyncLane</code><span>A discrete event, so <code>SyncLane</code>. The eager check: 1 ≠ 0, so a render is needed.</span></li><li><span class="anim-phase ph-schedule">schedule</span><code>markUpdateLaneFromFiberToRoot</code><span><code>Counter.lanes |= Sync</code>, and every ancestor gets <code>childLanes |= Sync</code>: a trail back from the root.</span></li><li><span class="anim-phase ph-schedule">schedule</span><code>ensureRootIsScheduled → queueMicrotask</code><span>The handler returns. Nothing has rendered yet.</span></li><li><span class="anim-phase ph-render">render phase</span><code>performSyncWorkOnRoot → workLoopSync · beginWork(HostRoot, App, main)</code><span>The microtask renders. HostRoot, App and main only have <code>childLanes</code> → <b>bail out</b> and continue down. <code>App()</code> is not called.</span></li><li><span class="anim-phase ph-render">render phase</span><code>beginWork(Header) → null</code><span><code>Header</code> has no work at all (<code>childLanes === 0</code>): the whole subtree is <b>skipped</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>Counter() → updateReducer → count = 1</code><span>Counter has its own lane → it <b>renders</b>. Both effects’ deps changed (<code>[0]</code> → <code>[1]</code>), so they are flagged.</span></li><li><span class="anim-phase ph-render">render phase</span><code>useFiber(button) · completeWork(button) → markUpdate</code><span>The button fiber is reused with new props and flagged <b>Update</b>. Then <code>completeWork</code> climbs back up, bubbling flags.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitMutationEffects → commitUpdate(button)</code><span>Commit, mutation: only the flagged path is visited. The text changes from 0 to 1. Then <code>root.current = finishedWork</code>.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitLayoutEffects → useLayoutEffect</code><span>Layout effect: <code>buttonRef.current.style.width = '50px'</code>. Still before paint.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>flushPendingEffects() (SyncLane) → useEffect</code><span>For a discrete update, passive effects are flushed <b>synchronously</b> at the end of the commit: <code>document.title</code> updates.</span></li><li><span class="anim-phase ph-paint">browser</span><code>microtask ends → style · layout · paint</code><span>Finally the browser paints: the user sees <b>1</b> in a 50px button. Only <code>Counter()</code> ran, and there were 2 DOM writes.</span></li></ol></div><div class="anim-hud" aria-live="polite"><div class="anim-call"><span class="anim-phase" hidden></span><code class="anim-fn" hidden></code></div><p class="anim-say"></p></div><div class="anim-controls"><button type="button" class="btn btn-ghost anim-btn" data-act="restart" aria-label="Restart">↺</button><button type="button" class="btn btn-ghost anim-btn" data-act="prev" aria-label="Previous step">←</button><button type="button" class="btn anim-play" data-act="play">▶ Play</button><button type="button" class="btn btn-ghost anim-btn" data-act="next" aria-label="Next step">→</button><div class="anim-progress"><div class="anim-bar"></div></div><span class="anim-count">0 / 0</span></div><figcaption>One click, end to end: event → schedule → render → commit → paint.</figcaption></figure>
+<figure class="fig fig-mermaid"><pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant D as React DOM root listener
+  participant C as Counter handler
+  participant S as Microtask
+  participant W as Work loop
+  participant K as Commit
+  B-&gt;&gt;D: native click
+  D-&gt;&gt;C: dispatchDiscreteEvent → onClick
+  C-&gt;&gt;S: setCount(1) · SyncLane · queueMicrotask
+  C--&gt;&gt;B: handler returns, nothing rendered yet
+  S-&gt;&gt;W: performSyncWorkOnRoot → renderRootSync
+  W-&gt;&gt;W: HostRoot, App, main bail out · Header skipped
+  W-&gt;&gt;W: Counter() runs → count = 1
+  W-&gt;&gt;K: commitRoot
+  K-&gt;&gt;K: mutation: "0" → "1", then root.current = finishedWork
+  K-&gt;&gt;K: layout: useLayoutEffect sets width 50px
+  K-&gt;&gt;K: passive (SyncLane): document.title = "Clicks: 1"
+  K--&gt;&gt;B: microtask ends → paint
+</pre><figcaption>One click, end to end. Steps 1–4 are the event, 5–7 render, 8–11 commit, 12 paint.</figcaption></figure>
+<h3 id="phase-1-the-event">Phase 1: the event</h3>
+<ol>
+<li>The browser dispatches a native <code>click</code>. React doesn’t attach listeners to
+individual nodes. At <code>createRoot</code> time, <code>listenToAllSupportedEvents</code>
+registered one listener per event type on the <strong>root container</strong>.</li>
+<li>The root listener for a discrete event is <code>dispatchDiscreteEvent</code>. It sets
+<code>ReactDOMSharedInternals.p = DiscreteEventPriority</code> (and clears any
+ambient transition), then calls <code>dispatchEvent</code>.</li>
+<li><code>dispatchEvent</code> → <code>dispatchEventForPluginEventSystem</code> finds the fiber for
+the target DOM node (React stores a pointer to it on the node), walks
+<code>return</code> pointers up to the root collecting <code>onClick</code> props, and creates a
+<code>SyntheticEvent</code>.</li>
+<li>Your handler runs: <code>setCount(count + 1)</code>, which is <code>setCount(1)</code>.</li>
+</ol>
+<h3 id="phase-2-scheduling-the-update">Phase 2: scheduling the update</h3>
+<ol start="5">
+<li><code>dispatchSetState(CounterFiber, queue, 1)</code> → <code>requestUpdateLane</code> → no
+transition, so <code>resolveUpdatePriority()</code> returns the priority from step 2:
+<strong><code>SyncLane</code></strong>.</li>
+<li><code>dispatchSetStateInternal</code>: <code>Counter</code>’s fiber has no pending lanes, so the
+eager path runs. <code>basicStateReducer(0, 1)</code> → <code>1</code>. <code>Object.is(1, 0)</code> is
+false, so it keeps going (the update keeps <code>eagerState: 1</code>).</li>
+<li><code>enqueueConcurrentHookUpdate</code> stashes the update in <code>concurrentQueues</code>
+and <code>getRootForUpdatedFiber</code> walks up to the <code>FiberRoot</code>.</li>
+<li><code>scheduleUpdateOnFiber(root, fiber, SyncLane)</code> → <code>markRootUpdated</code> adds
+<code>SyncLane</code> to <code>root.pendingLanes</code> → <code>ensureRootIsScheduled(root)</code> →
+<code>scheduleImmediateRootScheduleTask</code> → <strong><code>queueMicrotask</code></strong>.</li>
+<li>The handler returns, and <code>dispatchDiscreteEvent</code> restores the previous
+priority. The browser event is over. Nothing has rendered yet. Any other
+<code>setState</code> in this handler would have joined the same batch.</li>
+</ol>
+<h3 id="phase-3-render-synchronous-because-the-lane-is-synclane">Phase 3: render (synchronous, because the lane is <code>SyncLane</code>)</h3>
+<ol start="10">
+<li>The microtask runs <code>processRootScheduleInMicrotask</code>. It sees a sync lane
+and calls <code>flushSyncWorkAcrossRoots_impl</code> → <code>performSyncWorkOnRoot</code> →
+<code>performWorkOnRoot(root, SyncLane, true)</code>.</li>
+<li><code>(lanes &amp; 127) !== 0</code>, so this is a blocking lane → <code>renderRootSync</code>.</li>
+<li><code>prepareFreshStack(root, SyncLane)</code>: <code>workInProgress = createWorkInProgress(root.current, null)</code>, a WIP HostRoot (the first
+time, a new fiber that becomes the alternate). Then
+<code>finishQueueingConcurrentUpdates</code> links the stashed update into
+<code>queue.pending</code> and runs <code>markUpdateLaneFromFiberToRoot</code>: <code>Counter.lanes |= SyncLane</code>, and <code>main</code>, <code>App</code> and <code>HostRoot</code> get <code>childLanes |= SyncLane</code>.</li>
+<li><code>workLoopSync</code>: <code>while (workInProgress !== null) performUnitOfWork(workInProgress)</code>.</li>
+<li><strong>HostRoot</strong> <code>beginWork</code>: no own update, but <code>childLanes</code> includes Sync →
+<code>bailoutOnAlreadyFinishedWork</code> clones <code>App</code> → next = App.</li>
+<li><strong>App</strong> <code>beginWork</code>: <code>current.memoizedProps === workInProgress.pendingProps</code>
+(the same cloned props object), <code>checkScheduledUpdateOrContext</code> → false →
+<code>attemptEarlyBailoutIfNoScheduledUpdate</code> → <code>bailoutOnAlreadyFinishedWork</code>:
+<code>childLanes</code> has Sync → clone <code>main</code> → next = main. <strong><code>App()</code> is not
+called.</strong></li>
+<li><strong>main</strong> <code>beginWork</code>: same → bail out, clone <code>Header</code> and <code>Counter</code> → next =
+Header.</li>
+<li><strong>Header</strong> <code>beginWork</code>: same props object, no lanes, <code>childLanes === 0</code>
+→ <code>bailoutOnAlreadyFinishedWork</code> returns <strong><code>null</code></strong>. The whole Header
+subtree is skipped. <code>completeUnitOfWork(Header)</code>: nothing to do → sibling
+→ next = Counter.</li>
+<li><strong>Counter</strong> <code>beginWork</code>: <code>Counter.lanes &amp; SyncLane</code> → must render →
+<code>updateFunctionComponent</code> → <code>renderWithHooks</code> installs
+<code>HooksDispatcherOnUpdate</code> and calls <strong><code>Counter(props)</code></strong>:
+<ul>
+<li><code>useState</code> → <code>updateReducer</code>: <code>baseQueue = [u1]</code>, u1 has eager state
+<code>1</code> → <code>count = 1</code>, which differs from 0 →
+<code>didReceiveUpdate = true</code>.</li>
+<li><code>useRef</code> → returns the same <code>{ current: &lt;button&gt; }</code> object.</li>
+<li><code>useLayoutEffect</code> → <code>updateEffectImpl</code>: deps <code>[1]</code> vs <code>[0]</code> →
+<code>Object.is(1, 0)</code> false → fiber gets the <code>Update</code> flag, effect pushed
+with <code>HasEffect | Layout</code>.</li>
+<li><code>useEffect</code> → deps changed → fiber gets the <code>Passive</code> flag, effect
+pushed with <code>HasEffect | Passive</code>.</li>
+<li>Returns <code>&lt;button ref={buttonRef} onClick={newFn}&gt;{1}&lt;/button&gt;</code>.</li>
+</ul>
+</li>
+<li><code>reconcileChildren</code> → <code>reconcileChildFibersImpl</code> (its single-element branch, <code>reconcileSingleElement</code> in the unminified source): the old child is a
+<code>button</code> with key <code>null</code>, and the new element is a <code>button</code> with key
+<code>null</code> → same type → <code>useFiber(oldButton, newProps)</code>. Next = button.</li>
+<li><strong>button</strong> <code>beginWork</code> (the HostComponent case, <code>updateHostComponent</code> in the unminified source, where <code>shouldSetTextContent</code> is checked): its children is the single
+text value <code>1</code>, which React handles as direct text content (a “single
+text child” optimization), so there’s no child fiber to descend into. It
+returns <code>null</code>.</li>
+<li><code>completeUnitOfWork(button)</code> → <code>completeWork</code>: <code>memoizedProps !== newProps</code> → <code>markUpdate</code> (flag <code>Update</code>). The ref object is the same, so
+there’s no <code>Ref</code> flag. Bubble: <code>Counter.subtreeFlags |= Update</code>.</li>
+<li>Climb: <code>completeWork(Counter)</code>, <code>completeWork(main)</code>, <code>completeWork(App)</code>,
+<code>completeWork(HostRoot)</code>, each bubbling <code>subtreeFlags</code>. <code>workInProgress</code>
+becomes <code>null</code>, and the render is done. The only component that ran is
+<code>Counter</code>.</li>
+</ol>
+<h3 id="phase-4-commit-synchronous">Phase 4: commit (synchronous)</h3>
+<ol start="23">
+<li><code>commitRoot</code>: first <code>flushPendingEffects()</code> (none pending from earlier).</li>
+<li><code>flushSpawnedWork</code> will need to handle passive effects later, because
+<code>subtreeFlags</code> contains <code>Passive</code>. For a non-sync lane that would mean
+<code>scheduleCallback(NormalPriority, flushPassiveEffects)</code>. For <code>SyncLane</code>,
+React flushes them at the end of the commit (step 29).</li>
+<li><strong>Before mutation</strong> <code>commitBeforeMutationEffects</code>: nothing relevant
+(no class <code>getSnapshotBeforeUpdate</code>).</li>
+<li><strong>Mutation</strong> <code>flushMutationEffects</code> → <code>commitMutationEffectsOnFiber</code>
+walks down only where <code>subtreeFlags</code> is set (<code>HostRoot → App → main → Counter → button</code>, and <code>Header</code> is skipped):
+<ul>
+<li><code>button</code> has <code>Update</code> → <code>commitUpdate(dom, type, oldProps, newProps)</code>
+→ text content <code>"0"</code> → <code>"1"</code>, and the stored <code>onClick</code> prop is
+replaced.</li>
+<li><code>Counter</code> has <code>Update</code> → run the <strong>layout effect cleanup</strong> from the
+previous commit (there was none, since the effect returned nothing).</li>
+<li>Then <code>root.current = finishedWork</code>. <strong>The new tree is now current.</strong></li>
+</ul>
+</li>
+<li><strong>Layout</strong> <code>flushLayoutEffects</code> → <code>commitLayoutEffectOnFiber</code>, child
+before parent: the button has no ref change. For <code>Counter</code>, run
+<code>useLayoutEffect</code> setup → <code>button.style.width = '50px'</code>. This is still
+before paint.</li>
+<li>The browser hasn’t painted yet, because we’re still inside the
+microtask.</li>
+<li><code>flushSpawnedWork</code>: <code>pendingEffectsLanes &amp; 3</code> → SyncLane → run
+<code>flushPendingEffects()</code> now → <code>flushPassiveEffects</code>:
+<ul>
+<li>unmount pass: no previous <code>useEffect</code> cleanup</li>
+<li>mount pass: <code>document.title = 'Clicks: 1'</code></li>
+</ul>
+</li>
+<li>Microtask ends → the browser runs style, layout and <strong>paint</strong>. The user
+sees <code>1</code> in a 50px-wide button, and the tab title reads “Clicks: 1”.</li>
+</ol>
+<h3 id="summary-of-who-ran">Summary of who ran</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Ran?</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>App()</code></td>
+<td>no</td>
+<td>bailout: same props, no update, only <code>childLanes</code></td>
+</tr>
+<tr>
+<td><code>Header()</code></td>
+<td>no</td>
+<td>bailout with <code>childLanes === 0</code>: subtree skipped</td>
+</tr>
+<tr>
+<td><code>Counter()</code></td>
+<td>yes</td>
+<td>its own hook had a <code>SyncLane</code> update</td>
+</tr>
+<tr>
+<td>DOM writes</td>
+<td>2</td>
+<td>button text + <code>style.width</code> (from the layout effect)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="contrast-the-same-click-inside-starttransition">Contrast: the same click inside <code>startTransition</code></h2>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="tsx"><code><span class="line"><span style="color:#24292E">onClick</span><span style="color:#D73A49">=</span><span style="color:#24292E">{() =&gt; </span><span style="color:#6F42C1">startTransition</span><span style="color:#24292E">(() </span><span style="color:#D73A49">=&gt;</span><span style="color:#6F42C1"> setCount</span><span style="color:#24292E">(</span><span style="color:#6F42C1">count</span><span style="color:#24292E"> + </span><span style="color:#005CC5">1</span><span style="color:#24292E">))}</span></span></code></pre>
+<ol>
+<li>Steps 1–4 are the same, but inside the callback <code>ReactSharedInternals.T</code>
+is a transition object.</li>
+<li>Step 5: <code>requestUpdateLane</code> sees <code>T !== null</code> → <code>requestTransitionLane()</code>
+→ <strong><code>TransitionLane1</code></strong>.</li>
+<li>Step 10: the microtask finds no sync lanes, so
+<code>scheduleTaskForRootDuringMicrotask</code> sets an expiration time for the lane
+(+5000ms) and calls <code>scheduleCallback(NormalPriority, performWorkOnRootViaSchedulerTask)</code>. <strong>The microtask ends without
+rendering.</strong> The browser can paint and handle input.</li>
+<li>In a later macrotask (posted through <code>MessageChannel</code>), the Scheduler runs the
+task → <code>performWorkOnRoot(root, TransitionLane1, false)</code> → <code>(lanes &amp; 127) === 0</code> → <strong><code>renderRootConcurrent</code></strong> → <code>workLoopConcurrentByScheduler</code>,
+which checks <code>shouldYield()</code> after every fiber.</li>
+<li>Here the tree is tiny and finishes in one 5ms slice. For a large tree, the
+loop would exit mid-tree, return a continuation, and resume later. If a
+<code>SyncLane</code> update arrived in between, <code>prepareFreshStack</code> would discard
+this WIP and restart (<a href="../scheduler-lanes-and-batching/">Scheduler, Lanes and Batching</a>).</li>
+<li>The commit is the same as steps 23–27, except step 29. The lanes aren’t
+sync, so passive effects are <strong>scheduled</strong> as a separate Normal-priority
+task and run after the browser paints.</li>
+</ol>
+<h2 id="contrast-setcountcount-with-the-same-value">Contrast: <code>setCount(count)</code> with the same value</h2>
+<ol>
+<li>Steps 1–5 are the same.</li>
+<li>Step 6: the eager path computes <code>basicStateReducer(0, 0)</code> → <code>0</code> →
+<code>Object.is(0, 0)</code> → <strong>true</strong> → the update is enqueued with no lane and
+<code>dispatchSetStateInternal</code> returns <strong>without calling
+<code>scheduleUpdateOnFiber</code></strong>. No microtask, no render, no commit.</li>
+</ol>
+<h3 id="sources">Sources</h3>
+<ul>
+<li>React 19.2.5 source: <code>dispatchDiscreteEvent</code>, <code>dispatchEventForPluginEventSystem</code>, <code>dispatchSetState</code>, <code>dispatchSetStateInternal</code>, <code>requestUpdateLane</code>, <code>enqueueConcurrentHookUpdate</code>, <code>scheduleUpdateOnFiber</code>, <code>ensureRootIsScheduled</code>, <code>processRootScheduleInMicrotask</code>, <code>performWorkOnRoot</code>, <code>renderRootSync</code>, <code>renderRootConcurrent</code>, <code>prepareFreshStack</code>, <code>finishQueueingConcurrentUpdates</code>, <code>workLoopSync</code>, <code>beginWork</code>, <code>bailoutOnAlreadyFinishedWork</code>, <code>renderWithHooks</code>, <code>completeWork</code>, <code>commitRoot</code>, <code>flushMutationEffects</code>, <code>flushLayoutEffects</code>, <code>flushSpawnedWork</code>, <code>flushPassiveEffects</code></li>
+<li><a href="https://github.com/facebook/react/tree/main/packages/react-reconciler/src">React source: <code>packages/react-reconciler/src</code></a></li>
+</ul>
+<p class="source" data-astro-cid-vex5zuxs>Primary source: <a href="https://github.com/facebook/react/tree/main/packages/react-reconciler/src" data-astro-cid-vex5zuxs>github.com/facebook/react/tree/main/packages/react-reconciler/src</a></p></article></div><nav class="wrap pager" aria-label="Notes" data-astro-cid-vex5zuxs><a class="btn btn-ghost" href="/react-internals/notes/child-reconciliation-algorithm/" data-astro-cid-vex5zuxs>← Child Reconciliation Algorithm</a></nav><footer class="site-foot wrap">Built from the <em>React Internals</em> notes in the Nexus vault · checked against the React 19.2.5 source.</footer><script type="module" src="/react-internals/_astro/Base.astro_astro_type_script_index_0_lang.DLJ85iFT.js"></script></body></html>

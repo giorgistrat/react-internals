@@ -1,0 +1,452 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="The keyed list diff: lockstep fast path, the key Map and the lastPlacedIndex move heuristic."><link rel="icon" href="/react-internals/favicon.svg" type="image/svg+xml"><title>Child Reconciliation Algorithm · React Internals</title><link rel="stylesheet" href="/react-internals/_astro/notes-meta.bWncZdHM.css"><style>.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:center;gap:32px;padding-top:clamp(28px,5vw,56px);padding-bottom:clamp(28px,4vw,44px);display:grid}@media (width<=760px){.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:1fr}.head-art[data-astro-cid-vex5zuxs]{display:none}}.back[data-astro-cid-vex5zuxs]{margin-bottom:22px;padding:.45em 1em;font-size:13.5px}.meta[data-astro-cid-vex5zuxs]{align-items:center;gap:12px;margin-bottom:12px;display:flex}.num[data-astro-cid-vex5zuxs]{color:var(--ink-soft);font-size:14px;font-weight:800}h1[data-astro-cid-vex5zuxs]{letter-spacing:-.05em;font-size:clamp(38px,6vw,68px);line-height:1}.summary[data-astro-cid-vex5zuxs]{max-width:56ch;color:var(--ink-soft);margin:16px 0 0;font-size:18px}.head-art[data-astro-cid-vex5zuxs]{padding:12px}.head-art[data-astro-cid-vex5zuxs] .panel[data-astro-cid-vex5zuxs] svg{width:100%;height:auto;display:block}.layout[data-astro-cid-vex5zuxs]{grid-template-columns:240px minmax(0,1fr);align-items:start;gap:28px;display:grid}@media (width<=1000px){.layout[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1fr)}.toc[data-astro-cid-vex5zuxs]{display:none}}.toc[data-astro-cid-vex5zuxs]{position:sticky;top:20px}.toc-card[data-astro-cid-vex5zuxs]{max-height:calc(100vh - 40px);padding:16px 16px 12px;overflow-y:auto}.toc-title[data-astro-cid-vex5zuxs]{text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-size:12px;font-weight:800}.toc[data-astro-cid-vex5zuxs] ol[data-astro-cid-vex5zuxs]{margin:0;padding:0;font-size:14px;line-height:1.35;list-style:none}.toc[data-astro-cid-vex5zuxs] li[data-astro-cid-vex5zuxs]{margin:0 0 8px}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]{font-weight:600;text-decoration:none}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]:hover{text-decoration:underline;text-decoration-color:var(--orange);text-decoration-thickness:2px}.source[data-astro-cid-vex5zuxs]{border-top:2px dashed var(--cream-deep);overflow-wrap:anywhere;margin-top:2.5em;padding-top:1em;font-size:14px}.pager[data-astro-cid-vex5zuxs]{flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:40px;display:flex}
+</style></head><body><header class="note-head wrap" data-astro-cid-vex5zuxs><div class="head-text" data-astro-cid-vex5zuxs><a class="btn btn-ghost back" href="/react-internals/" data-astro-cid-vex5zuxs>← All notes</a><div class="meta" data-astro-cid-vex5zuxs><span class="pill" data-astro-cid-vex5zuxs><span class="lvl lvl-good" data-astro-cid-vex5zuxs></span>Good to know</span><span class="num" data-astro-cid-vex5zuxs>Note 08</span></div><h1 data-astro-cid-vex5zuxs>Child Reconciliation Algorithm</h1><p class="summary" data-astro-cid-vex5zuxs>The keyed list diff: lockstep fast path, the key Map and the lastPlacedIndex move heuristic.</p></div><div class="head-art card" data-astro-cid-vex5zuxs><div class="panel" data-astro-cid-vex5zuxs><svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><line x1="0" y1="78" x2="240" y2="78" stroke="#2b2522" stroke-width="1.4"/><polygon points="104.8,52.8 153.3,80.8 153.3,73.6 104.8,45.6" fill="#efe3c8" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="168.5,72.0 153.3,80.8 153.3,73.6 168.5,64.8" fill="#d6c6a3" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="120.0,36.8 168.5,64.8 153.3,73.6 104.8,45.6" fill="#fffaf0" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="84.0,64.8 132.5,92.8 132.5,85.6 84.0,57.6" fill="#efe3c8" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="147.7,84.0 132.5,92.8 132.5,85.6 147.7,76.8" fill="#d6c6a3" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="99.2,48.8 147.7,76.8 132.5,85.6 84.0,57.6" fill="#fffaf0" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="80.5,86.8 129.0,114.8 129.0,107.6 80.5,79.6" fill="#ff8a1f" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="144.2,106.0 129.0,114.8 129.0,107.6 144.2,98.8" fill="#d96a0b" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="95.8,70.8 144.2,98.8 129.0,107.6 80.5,79.6" fill="#ffb36b" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="42.4,88.8 90.9,116.8 90.9,109.6 42.4,81.6" fill="#efe3c8" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="106.1,108.0 90.9,116.8 90.9,109.6 106.1,100.8" fill="#d6c6a3" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><polygon points="57.6,72.8 106.1,100.8 90.9,109.6 42.4,81.6" fill="#fffaf0" stroke="#2b2522" stroke-width="1.6" stroke-linejoin="round"/><path d="M186 96 l14 -8" stroke="#2b2522" stroke-width="2"/><polygon points="200,88 192,86 196,94" fill="#2b2522"/></svg></div></div></header><div class="wrap layout" data-astro-cid-vex5zuxs><aside class="toc" data-astro-cid-vex5zuxs><nav class="card toc-card" aria-label="On this page" data-astro-cid-vex5zuxs><p class="toc-title" data-astro-cid-vex5zuxs>On this page</p><ol data-astro-cid-vex5zuxs><li data-astro-cid-vex5zuxs><a href="#interview-qa" data-astro-cid-vex5zuxs>Interview Q&amp;A</a></li><li data-astro-cid-vex5zuxs><a href="#the-problem-pairing-old-children-with-new-ones" data-astro-cid-vex5zuxs>The problem: pairing old children with new ones</a></li><li data-astro-cid-vex5zuxs><a href="#the-algorithm" data-astro-cid-vex5zuxs>The algorithm</a></li><li data-astro-cid-vex5zuxs><a href="#why-it-works-the-lastplacedindex-idea" data-astro-cid-vex5zuxs>Why it works: the lastPlacedIndex idea</a></li><li data-astro-cid-vex5zuxs><a href="#child-reconciliation-step-by-step" data-astro-cid-vex5zuxs>Child reconciliation, step by step</a></li><li data-astro-cid-vex5zuxs><a href="#how-other-frameworks-differ" data-astro-cid-vex5zuxs>How other frameworks differ</a></li><li data-astro-cid-vex5zuxs><a href="#rules-and-caveats" data-astro-cid-vex5zuxs>Rules and caveats</a></li></ol></nav></aside><article class="card prose" data-astro-cid-vex5zuxs><blockquote>
+<p>The list-diffing algorithm React runs when a component returns several
+children, read from <code>reconcileChildrenArray</code>, <code>updateSlot</code>,
+<code>mapRemainingChildren</code> and <code>placeChild</code> in the React 19.2.5 build
+(<code>react-dom-client.development.js</code>), whose source is <code>ReactChildFiber.js</code>.
+Part of <a href="../../">React Internals</a>. The rules it implements (type and key) are
+explained in <a href="../reconciliation/">Reconciliation</a>. My own notes and clarifications are
+marked with <code>&gt; 💬</code>.</p>
+</blockquote>
+<h2 id="interview-qa">Interview Q&amp;A</h2>
+<details class="qa"><summary>How does React diff a list of children?</summary>
+<p>In up to three passes over the new children, all linear. (1) Walk old and
+new <strong>in lockstep</strong> while keys match, which is the common case of nothing
+moving. (2) If one side runs out, bulk-delete or bulk-insert the rest. (3)
+Otherwise put the remaining old fibers in a <code>Map</code> by key (or index), look
+each new child up in it, and decide per child whether it can <strong>stay</strong> or
+must <strong>move</strong>. Old fibers left in the map are deleted.</p>
+</details>
+<details class="qa"><summary>How does React decide which nodes to move?</summary>
+<p>It keeps <code>lastPlacedIndex</code>, the highest <em>old</em> index among the reused
+children so far. A reused child whose old index is <strong>lower</strong> than that has
+jumped backwards relative to a sibling, so it’s marked to move. Otherwise it
+stays and becomes the new <code>lastPlacedIndex</code>. New children are always
+inserted. In our example, moving the <strong>last</strong> item to the front costs n−1
+moves, while moving the first item to the end costs one.</p>
+</details>
+<details class="qa"><summary>Why are index keys a problem?</summary>
+<p>With index keys (or no keys, which falls back to the index), inserting at
+the front makes old key <code>0</code> match the new first item. React reuses the old
+first item’s fiber, <strong>with its state and DOM node</strong>, for a different piece
+of data. Uncontrolled inputs, focus and local state end up on the wrong row.</p>
+</details>
+<details class="qa"><summary>Is React's list diff optimal?</summary>
+<p>No. It doesn’t compute the minimum number of moves. Vue 3 and Inferno use
+a longest-increasing-subsequence step for that. React keeps a simpler
+single left-to-right pass, because fibers only have forward (<code>sibling</code>)
+pointers.</p>
+</details>
+<h2 id="the-problem-pairing-old-children-with-new-ones">The problem: pairing old children with new ones</h2>
+<p>A fiber’s children are a <strong>singly linked list</strong>: <code>parent.child</code> is the first,
+then <code>.sibling</code> to the next. The component has just returned a new
+<strong>array</strong> of elements. React must decide, for each new element:</p>
+<ul>
+<li>reuse an old fiber (same key and same type) → update props, keep state</li>
+<li>create a new fiber → <strong>insert</strong></li>
+<li>mark a reused fiber as moved → <strong>move</strong> in the DOM</li>
+</ul>
+<p>It must also decide which old fibers have no match → <strong>delete</strong>.</p>
+<p>Doing this with nested loops is O(n²), and optimal moves need more
+bookkeeping. React does it in O(n) with a <code>Map</code>, accepting some extra moves
+in rare cases.</p>
+<h2 id="the-algorithm">The algorithm</h2>
+<p>Simplified from <code>reconcileChildrenArray(returnFiber, currentFirstChild, newChildren, lanes)</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> reconcileChildrenArray</span><span style="color:#24292E">(</span><span style="color:#E36209">returnFiber</span><span style="color:#24292E">, </span><span style="color:#E36209">currentFirstChild</span><span style="color:#24292E">, </span><span style="color:#E36209">newChildren</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> resultingFirstChild </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> null</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> previousNewFiber </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> null</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> oldFiber </span><span style="color:#D73A49">=</span><span style="color:#24292E"> currentFirstChild</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> lastPlacedIndex </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 0</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> newIdx </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 0</span></span>
+<span class="line"><span style="color:#D73A49">	let</span><span style="color:#24292E"> nextOldFiber </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> null</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">	// PASS 1: walk both lists in lockstep while keys line up</span></span>
+<span class="line"><span style="color:#D73A49">	for</span><span style="color:#24292E"> (; oldFiber </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#D73A49"> &amp;&amp;</span><span style="color:#24292E"> newIdx </span><span style="color:#D73A49">&lt;</span><span style="color:#24292E"> newChildren.</span><span style="color:#005CC5">length</span><span style="color:#24292E">; newIdx</span><span style="color:#D73A49">++</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#24292E">		nextOldFiber </span><span style="color:#D73A49">=</span><span style="color:#24292E"> oldFiber.sibling</span></span>
+<span class="line"><span style="color:#6A737D">		// updateSlot returns null if the KEYS differ;</span></span>
+<span class="line"><span style="color:#6A737D">		// if keys match but TYPES differ it returns a brand-new fiber</span></span>
+<span class="line"><span style="color:#D73A49">		const</span><span style="color:#005CC5"> newFiber</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> updateSlot</span><span style="color:#24292E">(returnFiber, oldFiber, newChildren[newIdx])</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (newFiber </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) </span><span style="color:#D73A49">break</span><span style="color:#6A737D">                    // keys diverged → leave the fast path</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (oldFiber </span><span style="color:#D73A49">&amp;&amp;</span><span style="color:#24292E"> newFiber.alternate </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#6F42C1">			deleteChild</span><span style="color:#24292E">(returnFiber, oldFiber)          </span><span style="color:#6A737D">// same key, different type → replace</span></span>
+<span class="line"><span style="color:#24292E">		}</span></span>
+<span class="line"><span style="color:#24292E">		lastPlacedIndex </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> placeChild</span><span style="color:#24292E">(newFiber, lastPlacedIndex, newIdx)</span></span>
+<span class="line"><span style="color:#6F42C1">		link</span><span style="color:#24292E">(newFiber)</span></span>
+<span class="line"><span style="color:#24292E">		oldFiber </span><span style="color:#D73A49">=</span><span style="color:#24292E"> nextOldFiber</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">	// PASS 2a: the new list ended → everything left in the old list goes</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (newIdx </span><span style="color:#D73A49">===</span><span style="color:#24292E"> newChildren.</span><span style="color:#005CC5">length</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#6F42C1">		deleteRemainingChildren</span><span style="color:#24292E">(returnFiber, oldFiber)</span></span>
+<span class="line"><span style="color:#D73A49">		return</span><span style="color:#24292E"> resultingFirstChild</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">	// PASS 2b: the old list ended → everything left in the new list is an insert</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (oldFiber </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">		for</span><span style="color:#24292E"> (; newIdx </span><span style="color:#D73A49">&lt;</span><span style="color:#24292E"> newChildren.</span><span style="color:#005CC5">length</span><span style="color:#24292E">; newIdx</span><span style="color:#D73A49">++</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">			const</span><span style="color:#005CC5"> newFiber</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> createChild</span><span style="color:#24292E">(returnFiber, newChildren[newIdx])</span></span>
+<span class="line"><span style="color:#24292E">			lastPlacedIndex </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> placeChild</span><span style="color:#24292E">(newFiber, lastPlacedIndex, newIdx)</span></span>
+<span class="line"><span style="color:#6F42C1">			link</span><span style="color:#24292E">(newFiber)</span></span>
+<span class="line"><span style="color:#24292E">		}</span></span>
+<span class="line"><span style="color:#D73A49">		return</span><span style="color:#24292E"> resultingFirstChild</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">	// PASS 3: keys diverged in the middle → match by key through a Map</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> existingChildren</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> mapRemainingChildren</span><span style="color:#24292E">(oldFiber)  </span><span style="color:#6A737D">// key ?? index → fiber</span></span>
+<span class="line"><span style="color:#D73A49">	for</span><span style="color:#24292E"> (; newIdx </span><span style="color:#D73A49">&lt;</span><span style="color:#24292E"> newChildren.</span><span style="color:#005CC5">length</span><span style="color:#24292E">; newIdx</span><span style="color:#D73A49">++</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">		const</span><span style="color:#005CC5"> newFiber</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> updateFromMap</span><span style="color:#24292E">(existingChildren, returnFiber, newIdx, newChildren[newIdx])</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (newFiber </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">			if</span><span style="color:#24292E"> (newFiber.alternate </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#24292E">				existingChildren.</span><span style="color:#6F42C1">delete</span><span style="color:#24292E">(newFiber.key </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> null</span><span style="color:#D73A49"> ?</span><span style="color:#24292E"> newIdx </span><span style="color:#D73A49">:</span><span style="color:#24292E"> newFiber.key)  </span><span style="color:#6A737D">// consumed</span></span>
+<span class="line"><span style="color:#24292E">			}</span></span>
+<span class="line"><span style="color:#24292E">			lastPlacedIndex </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> placeChild</span><span style="color:#24292E">(newFiber, lastPlacedIndex, newIdx)</span></span>
+<span class="line"><span style="color:#6F42C1">			link</span><span style="color:#24292E">(newFiber)</span></span>
+<span class="line"><span style="color:#24292E">		}</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"><span style="color:#24292E">	existingChildren.</span><span style="color:#6F42C1">forEach</span><span style="color:#24292E">((</span><span style="color:#E36209">child</span><span style="color:#24292E">) </span><span style="color:#D73A49">=&gt;</span><span style="color:#6F42C1"> deleteChild</span><span style="color:#24292E">(returnFiber, child))  </span><span style="color:#6A737D">// leftovers</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> resultingFirstChild</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The move decision, from the actual source (flag constants named):</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> placeChild</span><span style="color:#24292E">(</span><span style="color:#E36209">newFiber</span><span style="color:#24292E">, </span><span style="color:#E36209">lastPlacedIndex</span><span style="color:#24292E">, </span><span style="color:#E36209">newIndex</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#24292E">	newFiber.index </span><span style="color:#D73A49">=</span><span style="color:#24292E"> newIndex</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> current</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> newFiber.alternate</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (current </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">		const</span><span style="color:#005CC5"> oldIndex</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> current.index</span></span>
+<span class="line"><span style="color:#D73A49">		if</span><span style="color:#24292E"> (oldIndex </span><span style="color:#D73A49">&lt;</span><span style="color:#24292E"> lastPlacedIndex) {</span></span>
+<span class="line"><span style="color:#24292E">			newFiber.flags </span><span style="color:#D73A49">|=</span><span style="color:#24292E"> Placement   </span><span style="color:#6A737D">// this is a MOVE</span></span>
+<span class="line"><span style="color:#D73A49">			return</span><span style="color:#24292E"> lastPlacedIndex</span></span>
+<span class="line"><span style="color:#24292E">		} </span><span style="color:#D73A49">else</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#D73A49">			return</span><span style="color:#24292E"> oldIndex               </span><span style="color:#6A737D">// this item can STAY where it is</span></span>
+<span class="line"><span style="color:#24292E">		}</span></span>
+<span class="line"><span style="color:#24292E">	} </span><span style="color:#D73A49">else</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#24292E">		newFiber.flags </span><span style="color:#D73A49">|=</span><span style="color:#24292E"> Placement       </span><span style="color:#6A737D">// this is an INSERTION</span></span>
+<span class="line"><span style="color:#D73A49">		return</span><span style="color:#24292E"> lastPlacedIndex</span></span>
+<span class="line"><span style="color:#24292E">	}</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>And the map, verbatim apart from formatting:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> mapRemainingChildren</span><span style="color:#24292E">(</span><span style="color:#E36209">currentFirstChild</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	for</span><span style="color:#24292E"> (</span><span style="color:#D73A49">var</span><span style="color:#24292E"> existingChildren </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> Map</span><span style="color:#24292E">(); </span><span style="color:#005CC5">null</span><span style="color:#D73A49"> !==</span><span style="color:#24292E"> currentFirstChild; )</span></span>
+<span class="line"><span style="color:#005CC5">		null</span><span style="color:#D73A49"> !==</span><span style="color:#24292E"> currentFirstChild.key</span></span>
+<span class="line"><span style="color:#D73A49">			?</span><span style="color:#24292E"> existingChildren.</span><span style="color:#6F42C1">set</span><span style="color:#24292E">(currentFirstChild.key, currentFirstChild)</span></span>
+<span class="line"><span style="color:#D73A49">			:</span><span style="color:#24292E"> existingChildren.</span><span style="color:#6F42C1">set</span><span style="color:#24292E">(currentFirstChild.index, currentFirstChild),</span></span>
+<span class="line"><span style="color:#24292E">			(currentFirstChild </span><span style="color:#D73A49">=</span><span style="color:#24292E"> currentFirstChild.sibling)</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> existingChildren</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<blockquote>
+<p>Unkeyed children are stored under their <strong>index</strong>. That’s the whole
+reason “no key” behaves exactly like <code>key={index}</code>.</p>
+</blockquote>
+<h2 id="why-it-works-the-lastplacedindex-idea">Why it works: the <code>lastPlacedIndex</code> idea</h2>
+<p>Think of the old list as positions 0…n−1. Walking the new list left to right,
+React keeps the largest old index it has decided to keep in place. As long
+as each reused child’s old index is <strong>increasing</strong>, those children are
+already in the right relative order and none of them has to move. The first
+child whose old index is <em>smaller</em> than <code>lastPlacedIndex</code> was before
+something that is now before it, so it moves.</p>
+<p>A move is implemented as a DOM insert. In the commit, a fiber with
+<code>Placement</code> is inserted with <code>insertBefore</code> its next sibling that is
+<strong>not</strong> itself being placed (<code>getHostSibling</code>), or appended if there is none.
+Inserting an already-attached node moves it.</p>
+<p>The React source comments on the tradeoff: this algorithm “can’t optimize by
+searching from both ends since we don’t have backpointers on fibers.” A
+fiber has <code>sibling</code> but no <code>previousSibling</code>, so React never walks the list
+backwards.</p>
+<h2 id="child-reconciliation-step-by-step">Child reconciliation, step by step</h2>
+<p>Notation: letters are keys, and the number in parentheses is the <strong>old
+index</strong>. <code>lp</code> = <code>lastPlacedIndex</code> after that child.</p>
+<figure class="fig anim fig-listdiff-anim" data-anim><div class="btn-row anim-tabs" role="tablist"><button type="button" role="tab" class="btn " data-anim-tab="0" aria-selected="true">Append</button><button type="button" role="tab" class="btn btn-ghost" data-anim-tab="1" aria-selected="false">Remove middle</button><button type="button" role="tab" class="btn btn-ghost" data-anim-tab="2" aria-selected="false">Prepend</button><button type="button" role="tab" class="btn btn-ghost" data-anim-tab="3" aria-selected="false">First → last</button><button type="button" role="tab" class="btn btn-ghost" data-anim-tab="4" aria-selected="false">Last → first</button></div><div class="anim-scn" data-anim-scn="0"  data-steps="[{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'a', new 'a') · placeChild(…, 0)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): keys match → reuse the fiber. Old index 0 ≥ lastPlacedIndex → &lt;b&gt;stay&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;keep&quot;,&quot;n-a&quot;:&quot;keep hl&quot;,&quot;pass&quot;:&quot;on&quot;,&quot;lp&quot;:&quot;upd&quot;},&quot;unhl&quot;:{&quot;n-a&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1&quot;,&quot;lp&quot;:&quot;lastPlacedIndex = 0&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'b', new 'b') · placeChild(…, 1)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): keys match → reuse the fiber. Old index 1 ≥ lastPlacedIndex → &lt;b&gt;stay&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;n-a&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;o-b&quot;:&quot;keep&quot;,&quot;n-b&quot;:&quot;keep hl&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;n-b&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1&quot;,&quot;lp&quot;:&quot;lastPlacedIndex = 1&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'c', new 'c') · placeChild(…, 2)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): keys match → reuse the fiber. Old index 2 ≥ lastPlacedIndex → &lt;b&gt;stay&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;n-b&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;o-c&quot;:&quot;keep&quot;,&quot;n-c&quot;:&quot;keep hl&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1&quot;,&quot;lp&quot;:&quot;lastPlacedIndex = 2&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;createChild(parent, 'd') · placeChild → Placement&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 2b&lt;/b&gt;: the old list ended, so &lt;code&gt;d&lt;/code&gt; is a new fiber, flagged &lt;b&gt;Placement&lt;/b&gt; (insert).&quot;,&quot;set&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;,&quot;n-d&quot;:&quot;new hl&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;n-d&quot;:&quot;new&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 2b&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitPlacement / removeChild for each flagged fiber&quot;,&quot;say&quot;:&quot;Commit applies the flags: &lt;b&gt;1 DOM operation&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;n-d&quot;:&quot;new&quot;,&quot;pass&quot;:&quot;on&quot;,&quot;d-a&quot;:&quot;keep&quot;,&quot;d-b&quot;:&quot;keep&quot;,&quot;d-c&quot;:&quot;keep&quot;,&quot;d-d&quot;:&quot;new&quot;},&quot;css&quot;:{&quot;d-a&quot;:{&quot;--x&quot;:&quot;0&quot;},&quot;d-b&quot;:{&quot;--x&quot;:&quot;1&quot;},&quot;d-c&quot;:{&quot;--x&quot;:&quot;2&quot;},&quot;d-d&quot;:{&quot;--x&quot;:&quot;3&quot;}},&quot;txt&quot;:{&quot;pass&quot;:&quot;commit&quot;}}]" data-intro="Old &lt;code&gt;[a, b, c]&lt;/code&gt; → new &lt;code&gt;[a, b, c, d]&lt;/code&gt;. Press &lt;b&gt;Play&lt;/b&gt; to run &lt;code&gt;reconcileChildrenArray&lt;/code&gt;."><div class="anim-scn-title">Append</div><div class="anim-stage"><div class="ld-scene"><div class="a-label">old fibers</div><div class="a-track"><div style="--x:0" class="an node host" data-k="o-a"><span class="node-label" data-k="o-a-label">a</span><small data-k="o-a-sub">idx 0</small></div><div style="--x:1" class="an node host" data-k="o-b"><span class="node-label" data-k="o-b-label">b</span><small data-k="o-b-sub">idx 1</small></div><div style="--x:2" class="an node host" data-k="o-c"><span class="node-label" data-k="o-c-label">c</span><small data-k="o-c-sub">idx 2</small></div></div><div class="a-label">new elements</div><div class="a-track"><div style="--x:0" class="an node el" data-k="n-a"><span class="node-label" data-k="n-a-label">a</span><small data-k="n-a-sub">#0</small></div><div style="--x:1" class="an node el" data-k="n-b"><span class="node-label" data-k="n-b-label">b</span><small data-k="n-b-sub">#1</small></div><div style="--x:2" class="an node el" data-k="n-c"><span class="node-label" data-k="n-c-label">c</span><small data-k="n-c-sub">#2</small></div><div style="--x:3" class="an node el" data-k="n-d"><span class="node-label" data-k="n-d-label">d</span><small data-k="n-d-sub">#3</small></div></div><div class="a-row" style="margin:6px 0 10px"><span class="an chip-a" data-k="pass">start</span><span class="an chip-a" data-k="lp">lastPlacedIndex = 0</span><span class="a-label" style="margin-left:6px">map</span><span class="an chip-a" data-k="m-a" data-s="ghost">a → fiber</span><span class="an chip-a" data-k="m-b" data-s="ghost">b → fiber</span><span class="an chip-a" data-k="m-c" data-s="ghost">c → fiber</span></div><div class="a-label">DOM</div><div class="a-track"><div class="an node host" data-k="d-a" style="--x:0">&lt;li&gt;a</div><div class="an node host" data-k="d-b" style="--x:1">&lt;li&gt;b</div><div class="an node host" data-k="d-c" style="--x:2">&lt;li&gt;c</div><div class="an node host" data-k="d-d" style="--x:3" data-s="ghost">&lt;li&gt;d</div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'a', new 'a') · placeChild(…, 0)</code><span><b>Pass 1</b> (lockstep): keys match → reuse the fiber. Old index 0 ≥ lastPlacedIndex → <b>stay</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'b', new 'b') · placeChild(…, 1)</code><span><b>Pass 1</b> (lockstep): keys match → reuse the fiber. Old index 1 ≥ lastPlacedIndex → <b>stay</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'c', new 'c') · placeChild(…, 2)</code><span><b>Pass 1</b> (lockstep): keys match → reuse the fiber. Old index 2 ≥ lastPlacedIndex → <b>stay</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>createChild(parent, 'd') · placeChild → Placement</code><span><b>Pass 2b</b>: the old list ended, so <code>d</code> is a new fiber, flagged <b>Placement</b> (insert).</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitPlacement / removeChild for each flagged fiber</code><span>Commit applies the flags: <b>1 DOM operation</b>.</span></li></ol></div><div class="anim-scn" data-anim-scn="1" hidden data-steps="[{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'a', new 'a') · placeChild(…, 0)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): keys match → reuse the fiber. Old index 0 ≥ lastPlacedIndex → &lt;b&gt;stay&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;keep&quot;,&quot;n-a&quot;:&quot;keep hl&quot;,&quot;pass&quot;:&quot;on&quot;,&quot;lp&quot;:&quot;upd&quot;},&quot;unhl&quot;:{&quot;n-a&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1&quot;,&quot;lp&quot;:&quot;lastPlacedIndex = 0&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'b', new 'c') → null&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): key &lt;code&gt;'c' !== 'b'&lt;/code&gt;, so the fast path breaks.&quot;,&quot;set&quot;:{&quot;n-a&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;,&quot;o-b&quot;:&quot;cmp&quot;,&quot;n-c&quot;:&quot;cmp&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;o-b&quot;:&quot;&quot;,&quot;n-c&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1 → break&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;mapRemainingChildren(oldFiber)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 3&lt;/b&gt;: the remaining old fibers go into a &lt;code&gt;Map&lt;/code&gt; keyed by key: &lt;code&gt;b&lt;/code&gt;, &lt;code&gt;c&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;o-b&quot;:&quot;&quot;,&quot;n-c&quot;:&quot;&quot;,&quot;m-b&quot;:&quot;&quot;,&quot;m-c&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'c') · placeChild(fiber, 0, 1)&quot;,&quot;say&quot;:&quot;&lt;code&gt;c&lt;/code&gt; found in the map → reuse its fiber. old index 2 ≥ lastPlacedIndex 0 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 2.&quot;,&quot;set&quot;:{&quot;n-c&quot;:&quot;keep hl&quot;,&quot;o-c&quot;:&quot;keep&quot;,&quot;m-c&quot;:&quot;del&quot;,&quot;lp&quot;:&quot;upd&quot;},&quot;unhl&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 2&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;existingChildren.forEach(deleteChild)&quot;,&quot;say&quot;:&quot;Leftovers in the map are deleted: &lt;code&gt;b&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;,&quot;o-b&quot;:&quot;del&quot;,&quot;m-b&quot;:&quot;del&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitPlacement / removeChild for each flagged fiber&quot;,&quot;say&quot;:&quot;Commit applies the flags: &lt;b&gt;1 DOM operation&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;pass&quot;:&quot;on&quot;,&quot;d-a&quot;:&quot;keep&quot;,&quot;d-c&quot;:&quot;keep&quot;,&quot;d-b&quot;:&quot;gone&quot;},&quot;css&quot;:{&quot;d-a&quot;:{&quot;--x&quot;:&quot;0&quot;},&quot;d-c&quot;:{&quot;--x&quot;:&quot;1&quot;}},&quot;txt&quot;:{&quot;pass&quot;:&quot;commit&quot;}}]" data-intro="Old &lt;code&gt;[a, b, c]&lt;/code&gt; → new &lt;code&gt;[a, c]&lt;/code&gt;. Press &lt;b&gt;Play&lt;/b&gt; to run &lt;code&gt;reconcileChildrenArray&lt;/code&gt;."><div class="anim-scn-title">Remove middle</div><div class="anim-stage"><div class="ld-scene"><div class="a-label">old fibers</div><div class="a-track"><div style="--x:0" class="an node host" data-k="o-a"><span class="node-label" data-k="o-a-label">a</span><small data-k="o-a-sub">idx 0</small></div><div style="--x:1" class="an node host" data-k="o-b"><span class="node-label" data-k="o-b-label">b</span><small data-k="o-b-sub">idx 1</small></div><div style="--x:2" class="an node host" data-k="o-c"><span class="node-label" data-k="o-c-label">c</span><small data-k="o-c-sub">idx 2</small></div></div><div class="a-label">new elements</div><div class="a-track"><div style="--x:0" class="an node el" data-k="n-a"><span class="node-label" data-k="n-a-label">a</span><small data-k="n-a-sub">#0</small></div><div style="--x:1" class="an node el" data-k="n-c"><span class="node-label" data-k="n-c-label">c</span><small data-k="n-c-sub">#1</small></div></div><div class="a-row" style="margin:6px 0 10px"><span class="an chip-a" data-k="pass">start</span><span class="an chip-a" data-k="lp">lastPlacedIndex = 0</span><span class="a-label" style="margin-left:6px">map</span><span class="an chip-a" data-k="m-a" data-s="ghost">a → fiber</span><span class="an chip-a" data-k="m-b" data-s="ghost">b → fiber</span><span class="an chip-a" data-k="m-c" data-s="ghost">c → fiber</span></div><div class="a-label">DOM</div><div class="a-track"><div class="an node host" data-k="d-a" style="--x:0">&lt;li&gt;a</div><div class="an node host" data-k="d-b" style="--x:1">&lt;li&gt;b</div><div class="an node host" data-k="d-c" style="--x:2">&lt;li&gt;c</div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'a', new 'a') · placeChild(…, 0)</code><span><b>Pass 1</b> (lockstep): keys match → reuse the fiber. Old index 0 ≥ lastPlacedIndex → <b>stay</b>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'b', new 'c') → null</code><span><b>Pass 1</b> (lockstep): key <code>'c' !== 'b'</code>, so the fast path breaks.</span></li><li><span class="anim-phase ph-render">render phase</span><code>mapRemainingChildren(oldFiber)</code><span><b>Pass 3</b>: the remaining old fibers go into a <code>Map</code> keyed by key: <code>b</code>, <code>c</code>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'c') · placeChild(fiber, 0, 1)</code><span><code>c</code> found in the map → reuse its fiber. old index 2 ≥ lastPlacedIndex 0 → <b>stay</b>, lastPlacedIndex = 2.</span></li><li><span class="anim-phase ph-render">render phase</span><code>existingChildren.forEach(deleteChild)</code><span>Leftovers in the map are deleted: <code>b</code>.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitPlacement / removeChild for each flagged fiber</code><span>Commit applies the flags: <b>1 DOM operation</b>.</span></li></ol></div><div class="anim-scn" data-anim-scn="2" hidden data-steps="[{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'a', new 'x') → null&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): key &lt;code&gt;'x' !== 'a'&lt;/code&gt;, so the fast path breaks.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;cmp&quot;,&quot;n-x&quot;:&quot;cmp&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;o-a&quot;:&quot;&quot;,&quot;n-x&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1 → break&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;mapRemainingChildren(oldFiber)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 3&lt;/b&gt;: the remaining old fibers go into a &lt;code&gt;Map&lt;/code&gt; keyed by key: &lt;code&gt;a&lt;/code&gt;, &lt;code&gt;b&lt;/code&gt;, &lt;code&gt;c&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;&quot;,&quot;n-x&quot;:&quot;&quot;,&quot;m-a&quot;:&quot;&quot;,&quot;m-b&quot;:&quot;&quot;,&quot;m-c&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'x') → createFiberFromElement&quot;,&quot;say&quot;:&quot;&lt;code&gt;x&lt;/code&gt; isn’t in the map → new fiber, flagged &lt;b&gt;Placement&lt;/b&gt; (insert).&quot;,&quot;set&quot;:{&quot;n-x&quot;:&quot;new hl&quot;},&quot;unhl&quot;:{&quot;n-x&quot;:&quot;new&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'a') · placeChild(fiber, 0, 1)&quot;,&quot;say&quot;:&quot;&lt;code&gt;a&lt;/code&gt; found in the map → reuse its fiber. old index 0 ≥ lastPlacedIndex 0 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 0.&quot;,&quot;set&quot;:{&quot;n-x&quot;:&quot;new&quot;,&quot;n-a&quot;:&quot;keep hl&quot;,&quot;o-a&quot;:&quot;keep&quot;,&quot;m-a&quot;:&quot;del&quot;,&quot;lp&quot;:&quot;upd&quot;},&quot;unhl&quot;:{&quot;n-a&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 0&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'b') · placeChild(fiber, 0, 2)&quot;,&quot;say&quot;:&quot;&lt;code&gt;b&lt;/code&gt; found in the map → reuse its fiber. old index 1 ≥ lastPlacedIndex 0 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 1.&quot;,&quot;set&quot;:{&quot;n-a&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-b&quot;:&quot;keep hl&quot;,&quot;o-b&quot;:&quot;keep&quot;,&quot;m-b&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-b&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 1&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'c') · placeChild(fiber, 1, 3)&quot;,&quot;say&quot;:&quot;&lt;code&gt;c&lt;/code&gt; found in the map → reuse its fiber. old index 2 ≥ lastPlacedIndex 1 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 2.&quot;,&quot;set&quot;:{&quot;n-b&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-c&quot;:&quot;keep hl&quot;,&quot;o-c&quot;:&quot;keep&quot;,&quot;m-c&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 2&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitPlacement / removeChild for each flagged fiber&quot;,&quot;say&quot;:&quot;Commit applies the flags: &lt;b&gt;1 DOM operation&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;,&quot;d-x&quot;:&quot;new&quot;,&quot;d-a&quot;:&quot;keep&quot;,&quot;d-b&quot;:&quot;keep&quot;,&quot;d-c&quot;:&quot;keep&quot;},&quot;css&quot;:{&quot;d-x&quot;:{&quot;--x&quot;:&quot;0&quot;},&quot;d-a&quot;:{&quot;--x&quot;:&quot;1&quot;},&quot;d-b&quot;:{&quot;--x&quot;:&quot;2&quot;},&quot;d-c&quot;:{&quot;--x&quot;:&quot;3&quot;}},&quot;txt&quot;:{&quot;pass&quot;:&quot;commit&quot;}}]" data-intro="Old &lt;code&gt;[a, b, c]&lt;/code&gt; → new &lt;code&gt;[x, a, b, c]&lt;/code&gt;. Press &lt;b&gt;Play&lt;/b&gt; to run &lt;code&gt;reconcileChildrenArray&lt;/code&gt;."><div class="anim-scn-title">Prepend</div><div class="anim-stage"><div class="ld-scene"><div class="a-label">old fibers</div><div class="a-track"><div style="--x:0" class="an node host" data-k="o-a"><span class="node-label" data-k="o-a-label">a</span><small data-k="o-a-sub">idx 0</small></div><div style="--x:1" class="an node host" data-k="o-b"><span class="node-label" data-k="o-b-label">b</span><small data-k="o-b-sub">idx 1</small></div><div style="--x:2" class="an node host" data-k="o-c"><span class="node-label" data-k="o-c-label">c</span><small data-k="o-c-sub">idx 2</small></div></div><div class="a-label">new elements</div><div class="a-track"><div style="--x:0" class="an node el" data-k="n-x"><span class="node-label" data-k="n-x-label">x</span><small data-k="n-x-sub">#0</small></div><div style="--x:1" class="an node el" data-k="n-a"><span class="node-label" data-k="n-a-label">a</span><small data-k="n-a-sub">#1</small></div><div style="--x:2" class="an node el" data-k="n-b"><span class="node-label" data-k="n-b-label">b</span><small data-k="n-b-sub">#2</small></div><div style="--x:3" class="an node el" data-k="n-c"><span class="node-label" data-k="n-c-label">c</span><small data-k="n-c-sub">#3</small></div></div><div class="a-row" style="margin:6px 0 10px"><span class="an chip-a" data-k="pass">start</span><span class="an chip-a" data-k="lp">lastPlacedIndex = 0</span><span class="a-label" style="margin-left:6px">map</span><span class="an chip-a" data-k="m-a" data-s="ghost">a → fiber</span><span class="an chip-a" data-k="m-b" data-s="ghost">b → fiber</span><span class="an chip-a" data-k="m-c" data-s="ghost">c → fiber</span></div><div class="a-label">DOM</div><div class="a-track"><div class="an node host" data-k="d-a" style="--x:0">&lt;li&gt;a</div><div class="an node host" data-k="d-b" style="--x:1">&lt;li&gt;b</div><div class="an node host" data-k="d-c" style="--x:2">&lt;li&gt;c</div><div class="an node host" data-k="d-x" style="--x:0" data-s="ghost">&lt;li&gt;x</div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'a', new 'x') → null</code><span><b>Pass 1</b> (lockstep): key <code>'x' !== 'a'</code>, so the fast path breaks.</span></li><li><span class="anim-phase ph-render">render phase</span><code>mapRemainingChildren(oldFiber)</code><span><b>Pass 3</b>: the remaining old fibers go into a <code>Map</code> keyed by key: <code>a</code>, <code>b</code>, <code>c</code>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'x') → createFiberFromElement</code><span><code>x</code> isn’t in the map → new fiber, flagged <b>Placement</b> (insert).</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'a') · placeChild(fiber, 0, 1)</code><span><code>a</code> found in the map → reuse its fiber. old index 0 ≥ lastPlacedIndex 0 → <b>stay</b>, lastPlacedIndex = 0.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'b') · placeChild(fiber, 0, 2)</code><span><code>b</code> found in the map → reuse its fiber. old index 1 ≥ lastPlacedIndex 0 → <b>stay</b>, lastPlacedIndex = 1.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'c') · placeChild(fiber, 1, 3)</code><span><code>c</code> found in the map → reuse its fiber. old index 2 ≥ lastPlacedIndex 1 → <b>stay</b>, lastPlacedIndex = 2.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitPlacement / removeChild for each flagged fiber</code><span>Commit applies the flags: <b>1 DOM operation</b>.</span></li></ol></div><div class="anim-scn" data-anim-scn="3" hidden data-steps="[{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'a', new 'b') → null&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): key &lt;code&gt;'b' !== 'a'&lt;/code&gt;, so the fast path breaks.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;cmp&quot;,&quot;n-b&quot;:&quot;cmp&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;o-a&quot;:&quot;&quot;,&quot;n-b&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1 → break&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;mapRemainingChildren(oldFiber)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 3&lt;/b&gt;: the remaining old fibers go into a &lt;code&gt;Map&lt;/code&gt; keyed by key: &lt;code&gt;a&lt;/code&gt;, &lt;code&gt;b&lt;/code&gt;, &lt;code&gt;c&lt;/code&gt;, &lt;code&gt;d&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;&quot;,&quot;n-b&quot;:&quot;&quot;,&quot;m-a&quot;:&quot;&quot;,&quot;m-b&quot;:&quot;&quot;,&quot;m-c&quot;:&quot;&quot;,&quot;m-d&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'b') · placeChild(fiber, 0, 0)&quot;,&quot;say&quot;:&quot;&lt;code&gt;b&lt;/code&gt; found in the map → reuse its fiber. old index 1 ≥ lastPlacedIndex 0 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 1.&quot;,&quot;set&quot;:{&quot;n-b&quot;:&quot;keep hl&quot;,&quot;o-b&quot;:&quot;keep&quot;,&quot;m-b&quot;:&quot;del&quot;,&quot;lp&quot;:&quot;upd&quot;},&quot;unhl&quot;:{&quot;n-b&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 1&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'c') · placeChild(fiber, 1, 1)&quot;,&quot;say&quot;:&quot;&lt;code&gt;c&lt;/code&gt; found in the map → reuse its fiber. old index 2 ≥ lastPlacedIndex 1 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 2.&quot;,&quot;set&quot;:{&quot;n-b&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-c&quot;:&quot;keep hl&quot;,&quot;o-c&quot;:&quot;keep&quot;,&quot;m-c&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 2&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'd') · placeChild(fiber, 2, 2)&quot;,&quot;say&quot;:&quot;&lt;code&gt;d&lt;/code&gt; found in the map → reuse its fiber. old index 3 ≥ lastPlacedIndex 2 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 3.&quot;,&quot;set&quot;:{&quot;n-c&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-d&quot;:&quot;keep hl&quot;,&quot;o-d&quot;:&quot;keep&quot;,&quot;m-d&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-d&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'a') · placeChild(fiber, 3, 3)&quot;,&quot;say&quot;:&quot;&lt;code&gt;a&lt;/code&gt; found in the map → reuse its fiber. old index 0 &amp;lt; lastPlacedIndex 3 → &lt;b&gt;move&lt;/b&gt; (Placement).&quot;,&quot;set&quot;:{&quot;n-d&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-a&quot;:&quot;upd hl&quot;,&quot;o-a&quot;:&quot;keep&quot;,&quot;m-a&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-a&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 3&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitPlacement / removeChild for each flagged fiber&quot;,&quot;say&quot;:&quot;Commit applies the flags: &lt;b&gt;1 DOM operation&lt;/b&gt;.&quot;,&quot;set&quot;:{&quot;n-a&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;,&quot;d-b&quot;:&quot;keep&quot;,&quot;d-c&quot;:&quot;keep&quot;,&quot;d-d&quot;:&quot;keep&quot;,&quot;d-a&quot;:&quot;upd&quot;},&quot;css&quot;:{&quot;d-b&quot;:{&quot;--x&quot;:&quot;0&quot;},&quot;d-c&quot;:{&quot;--x&quot;:&quot;1&quot;},&quot;d-d&quot;:{&quot;--x&quot;:&quot;2&quot;},&quot;d-a&quot;:{&quot;--x&quot;:&quot;3&quot;}},&quot;txt&quot;:{&quot;pass&quot;:&quot;commit&quot;}}]" data-intro="Old &lt;code&gt;[a, b, c, d]&lt;/code&gt; → new &lt;code&gt;[b, c, d, a]&lt;/code&gt;. Press &lt;b&gt;Play&lt;/b&gt; to run &lt;code&gt;reconcileChildrenArray&lt;/code&gt;."><div class="anim-scn-title">First → last</div><div class="anim-stage"><div class="ld-scene"><div class="a-label">old fibers</div><div class="a-track"><div style="--x:0" class="an node host" data-k="o-a"><span class="node-label" data-k="o-a-label">a</span><small data-k="o-a-sub">idx 0</small></div><div style="--x:1" class="an node host" data-k="o-b"><span class="node-label" data-k="o-b-label">b</span><small data-k="o-b-sub">idx 1</small></div><div style="--x:2" class="an node host" data-k="o-c"><span class="node-label" data-k="o-c-label">c</span><small data-k="o-c-sub">idx 2</small></div><div style="--x:3" class="an node host" data-k="o-d"><span class="node-label" data-k="o-d-label">d</span><small data-k="o-d-sub">idx 3</small></div></div><div class="a-label">new elements</div><div class="a-track"><div style="--x:0" class="an node el" data-k="n-b"><span class="node-label" data-k="n-b-label">b</span><small data-k="n-b-sub">#0</small></div><div style="--x:1" class="an node el" data-k="n-c"><span class="node-label" data-k="n-c-label">c</span><small data-k="n-c-sub">#1</small></div><div style="--x:2" class="an node el" data-k="n-d"><span class="node-label" data-k="n-d-label">d</span><small data-k="n-d-sub">#2</small></div><div style="--x:3" class="an node el" data-k="n-a"><span class="node-label" data-k="n-a-label">a</span><small data-k="n-a-sub">#3</small></div></div><div class="a-row" style="margin:6px 0 10px"><span class="an chip-a" data-k="pass">start</span><span class="an chip-a" data-k="lp">lastPlacedIndex = 0</span><span class="a-label" style="margin-left:6px">map</span><span class="an chip-a" data-k="m-a" data-s="ghost">a → fiber</span><span class="an chip-a" data-k="m-b" data-s="ghost">b → fiber</span><span class="an chip-a" data-k="m-c" data-s="ghost">c → fiber</span><span class="an chip-a" data-k="m-d" data-s="ghost">d → fiber</span></div><div class="a-label">DOM</div><div class="a-track"><div class="an node host" data-k="d-a" style="--x:0">&lt;li&gt;a</div><div class="an node host" data-k="d-b" style="--x:1">&lt;li&gt;b</div><div class="an node host" data-k="d-c" style="--x:2">&lt;li&gt;c</div><div class="an node host" data-k="d-d" style="--x:3">&lt;li&gt;d</div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'a', new 'b') → null</code><span><b>Pass 1</b> (lockstep): key <code>'b' !== 'a'</code>, so the fast path breaks.</span></li><li><span class="anim-phase ph-render">render phase</span><code>mapRemainingChildren(oldFiber)</code><span><b>Pass 3</b>: the remaining old fibers go into a <code>Map</code> keyed by key: <code>a</code>, <code>b</code>, <code>c</code>, <code>d</code>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'b') · placeChild(fiber, 0, 0)</code><span><code>b</code> found in the map → reuse its fiber. old index 1 ≥ lastPlacedIndex 0 → <b>stay</b>, lastPlacedIndex = 1.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'c') · placeChild(fiber, 1, 1)</code><span><code>c</code> found in the map → reuse its fiber. old index 2 ≥ lastPlacedIndex 1 → <b>stay</b>, lastPlacedIndex = 2.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'd') · placeChild(fiber, 2, 2)</code><span><code>d</code> found in the map → reuse its fiber. old index 3 ≥ lastPlacedIndex 2 → <b>stay</b>, lastPlacedIndex = 3.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'a') · placeChild(fiber, 3, 3)</code><span><code>a</code> found in the map → reuse its fiber. old index 0 &lt; lastPlacedIndex 3 → <b>move</b> (Placement).</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitPlacement / removeChild for each flagged fiber</code><span>Commit applies the flags: <b>1 DOM operation</b>.</span></li></ol></div><div class="anim-scn" data-anim-scn="4" hidden data-steps="[{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateSlot(old 'a', new 'd') → null&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 1&lt;/b&gt; (lockstep): key &lt;code&gt;'d' !== 'a'&lt;/code&gt;, so the fast path breaks.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;cmp&quot;,&quot;n-d&quot;:&quot;cmp&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;unhl&quot;:{&quot;o-a&quot;:&quot;&quot;,&quot;n-d&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 1 → break&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;mapRemainingChildren(oldFiber)&quot;,&quot;say&quot;:&quot;&lt;b&gt;Pass 3&lt;/b&gt;: the remaining old fibers go into a &lt;code&gt;Map&lt;/code&gt; keyed by key: &lt;code&gt;a&lt;/code&gt;, &lt;code&gt;b&lt;/code&gt;, &lt;code&gt;c&lt;/code&gt;, &lt;code&gt;d&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;o-a&quot;:&quot;&quot;,&quot;n-d&quot;:&quot;&quot;,&quot;m-a&quot;:&quot;&quot;,&quot;m-b&quot;:&quot;&quot;,&quot;m-c&quot;:&quot;&quot;,&quot;m-d&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;},&quot;txt&quot;:{&quot;pass&quot;:&quot;pass 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'd') · placeChild(fiber, 0, 0)&quot;,&quot;say&quot;:&quot;&lt;code&gt;d&lt;/code&gt; found in the map → reuse its fiber. old index 3 ≥ lastPlacedIndex 0 → &lt;b&gt;stay&lt;/b&gt;, lastPlacedIndex = 3.&quot;,&quot;set&quot;:{&quot;n-d&quot;:&quot;keep hl&quot;,&quot;o-d&quot;:&quot;keep&quot;,&quot;m-d&quot;:&quot;del&quot;,&quot;lp&quot;:&quot;upd&quot;},&quot;unhl&quot;:{&quot;n-d&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'a') · placeChild(fiber, 3, 1)&quot;,&quot;say&quot;:&quot;&lt;code&gt;a&lt;/code&gt; found in the map → reuse its fiber. old index 0 &amp;lt; lastPlacedIndex 3 → &lt;b&gt;move&lt;/b&gt; (Placement).&quot;,&quot;set&quot;:{&quot;n-d&quot;:&quot;keep&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-a&quot;:&quot;upd hl&quot;,&quot;o-a&quot;:&quot;keep&quot;,&quot;m-a&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-a&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'b') · placeChild(fiber, 3, 2)&quot;,&quot;say&quot;:&quot;&lt;code&gt;b&lt;/code&gt; found in the map → reuse its fiber. old index 1 &amp;lt; lastPlacedIndex 3 → &lt;b&gt;move&lt;/b&gt; (Placement).&quot;,&quot;set&quot;:{&quot;n-a&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-b&quot;:&quot;upd hl&quot;,&quot;o-b&quot;:&quot;keep&quot;,&quot;m-b&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-b&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 3&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;updateFromMap(map, 'c') · placeChild(fiber, 3, 3)&quot;,&quot;say&quot;:&quot;&lt;code&gt;c&lt;/code&gt; found in the map → reuse its fiber. old index 2 &amp;lt; lastPlacedIndex 3 → &lt;b&gt;move&lt;/b&gt; (Placement).&quot;,&quot;set&quot;:{&quot;n-b&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;upd&quot;,&quot;n-c&quot;:&quot;upd hl&quot;,&quot;o-c&quot;:&quot;keep&quot;,&quot;m-c&quot;:&quot;del&quot;},&quot;unhl&quot;:{&quot;n-c&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;lp&quot;:&quot;lastPlacedIndex = 3&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitPlacement / removeChild for each flagged fiber&quot;,&quot;say&quot;:&quot;Commit applies the flags: &lt;b&gt;3 DOM operations&lt;/b&gt;. Moving just one item would have been enough: this is the worst case of the left-to-right heuristic.&quot;,&quot;set&quot;:{&quot;n-c&quot;:&quot;upd&quot;,&quot;lp&quot;:&quot;&quot;,&quot;pass&quot;:&quot;on&quot;,&quot;d-d&quot;:&quot;keep&quot;,&quot;d-a&quot;:&quot;upd&quot;,&quot;d-b&quot;:&quot;upd&quot;,&quot;d-c&quot;:&quot;upd&quot;},&quot;css&quot;:{&quot;d-d&quot;:{&quot;--x&quot;:&quot;0&quot;},&quot;d-a&quot;:{&quot;--x&quot;:&quot;1&quot;},&quot;d-b&quot;:{&quot;--x&quot;:&quot;2&quot;},&quot;d-c&quot;:{&quot;--x&quot;:&quot;3&quot;}},&quot;txt&quot;:{&quot;pass&quot;:&quot;commit&quot;}}]" data-intro="Old &lt;code&gt;[a, b, c, d]&lt;/code&gt; → new &lt;code&gt;[d, a, b, c]&lt;/code&gt;. Press &lt;b&gt;Play&lt;/b&gt; to run &lt;code&gt;reconcileChildrenArray&lt;/code&gt;."><div class="anim-scn-title">Last → first</div><div class="anim-stage"><div class="ld-scene"><div class="a-label">old fibers</div><div class="a-track"><div style="--x:0" class="an node host" data-k="o-a"><span class="node-label" data-k="o-a-label">a</span><small data-k="o-a-sub">idx 0</small></div><div style="--x:1" class="an node host" data-k="o-b"><span class="node-label" data-k="o-b-label">b</span><small data-k="o-b-sub">idx 1</small></div><div style="--x:2" class="an node host" data-k="o-c"><span class="node-label" data-k="o-c-label">c</span><small data-k="o-c-sub">idx 2</small></div><div style="--x:3" class="an node host" data-k="o-d"><span class="node-label" data-k="o-d-label">d</span><small data-k="o-d-sub">idx 3</small></div></div><div class="a-label">new elements</div><div class="a-track"><div style="--x:0" class="an node el" data-k="n-d"><span class="node-label" data-k="n-d-label">d</span><small data-k="n-d-sub">#0</small></div><div style="--x:1" class="an node el" data-k="n-a"><span class="node-label" data-k="n-a-label">a</span><small data-k="n-a-sub">#1</small></div><div style="--x:2" class="an node el" data-k="n-b"><span class="node-label" data-k="n-b-label">b</span><small data-k="n-b-sub">#2</small></div><div style="--x:3" class="an node el" data-k="n-c"><span class="node-label" data-k="n-c-label">c</span><small data-k="n-c-sub">#3</small></div></div><div class="a-row" style="margin:6px 0 10px"><span class="an chip-a" data-k="pass">start</span><span class="an chip-a" data-k="lp">lastPlacedIndex = 0</span><span class="a-label" style="margin-left:6px">map</span><span class="an chip-a" data-k="m-a" data-s="ghost">a → fiber</span><span class="an chip-a" data-k="m-b" data-s="ghost">b → fiber</span><span class="an chip-a" data-k="m-c" data-s="ghost">c → fiber</span><span class="an chip-a" data-k="m-d" data-s="ghost">d → fiber</span></div><div class="a-label">DOM</div><div class="a-track"><div class="an node host" data-k="d-a" style="--x:0">&lt;li&gt;a</div><div class="an node host" data-k="d-b" style="--x:1">&lt;li&gt;b</div><div class="an node host" data-k="d-c" style="--x:2">&lt;li&gt;c</div><div class="an node host" data-k="d-d" style="--x:3">&lt;li&gt;d</div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-render">render phase</span><code>updateSlot(old 'a', new 'd') → null</code><span><b>Pass 1</b> (lockstep): key <code>'d' !== 'a'</code>, so the fast path breaks.</span></li><li><span class="anim-phase ph-render">render phase</span><code>mapRemainingChildren(oldFiber)</code><span><b>Pass 3</b>: the remaining old fibers go into a <code>Map</code> keyed by key: <code>a</code>, <code>b</code>, <code>c</code>, <code>d</code>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'd') · placeChild(fiber, 0, 0)</code><span><code>d</code> found in the map → reuse its fiber. old index 3 ≥ lastPlacedIndex 0 → <b>stay</b>, lastPlacedIndex = 3.</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'a') · placeChild(fiber, 3, 1)</code><span><code>a</code> found in the map → reuse its fiber. old index 0 &lt; lastPlacedIndex 3 → <b>move</b> (Placement).</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'b') · placeChild(fiber, 3, 2)</code><span><code>b</code> found in the map → reuse its fiber. old index 1 &lt; lastPlacedIndex 3 → <b>move</b> (Placement).</span></li><li><span class="anim-phase ph-render">render phase</span><code>updateFromMap(map, 'c') · placeChild(fiber, 3, 3)</code><span><code>c</code> found in the map → reuse its fiber. old index 2 &lt; lastPlacedIndex 3 → <b>move</b> (Placement).</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitPlacement / removeChild for each flagged fiber</code><span>Commit applies the flags: <b>3 DOM operations</b>. Moving just one item would have been enough: this is the worst case of the left-to-right heuristic.</span></li></ol></div><div class="anim-hud" aria-live="polite"><div class="anim-call"><span class="anim-phase" hidden></span><code class="anim-fn" hidden></code></div><p class="anim-say"></p></div><div class="anim-controls"><button type="button" class="btn btn-ghost anim-btn" data-act="restart" aria-label="Restart">↺</button><button type="button" class="btn btn-ghost anim-btn" data-act="prev" aria-label="Previous step">←</button><button type="button" class="btn anim-play" data-act="play">▶ Play</button><button type="button" class="btn btn-ghost anim-btn" data-act="next" aria-label="Next step">→</button><div class="anim-progress"><div class="anim-bar"></div></div><span class="anim-count">0 / 0</span></div><figcaption>Colors: <b>yellow</b> stay, <b>orange</b> move, <b>green</b> insert, <b>pink</b> delete. A reused fiber moves only if its old index is smaller than <code>lastPlacedIndex</code>.</figcaption></figure>
+<h3 id="append-a-b-c--a-b-c-d">Append: <code>[a, b, c]</code> → <code>[a, b, c, d]</code></h3>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>New child</th>
+<th>Match</th>
+<th>Old idx</th>
+<th><code>lp</code></th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>a</td>
+<td>a</td>
+<td>0</td>
+<td>0</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>1</td>
+<td>b</td>
+<td>b</td>
+<td>1</td>
+<td>1</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>1</td>
+<td>c</td>
+<td>c</td>
+<td>2</td>
+<td>2</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>2b</td>
+<td>d</td>
+<td>–</td>
+<td>–</td>
+<td>2</td>
+<td><strong>insert</strong></td>
+</tr>
+</tbody>
+</table>
+<p>1 DOM operation. The fast path handles it.</p>
+<h3 id="remove-from-the-middle-a-b-c--a-c">Remove from the middle: <code>[a, b, c]</code> → <code>[a, c]</code></h3>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>New child</th>
+<th>Match</th>
+<th>Old idx</th>
+<th><code>lp</code></th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>a</td>
+<td>a</td>
+<td>0</td>
+<td>0</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>1</td>
+<td>c</td>
+<td>key ≠ b</td>
+<td>–</td>
+<td>–</td>
+<td>break → pass 3, map = {b, c}</td>
+</tr>
+<tr>
+<td>3</td>
+<td>c</td>
+<td>c</td>
+<td>2</td>
+<td>2</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>end</td>
+<td>–</td>
+<td>b left in map</td>
+<td>–</td>
+<td>–</td>
+<td><strong>delete b</strong></td>
+</tr>
+</tbody>
+</table>
+<p>1 DOM operation.</p>
+<h3 id="prepend-a-b-c--x-a-b-c">Prepend: <code>[a, b, c]</code> → <code>[x, a, b, c]</code></h3>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>New child</th>
+<th>Match</th>
+<th>Old idx</th>
+<th><code>lp</code></th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>x</td>
+<td>key ≠ a</td>
+<td>–</td>
+<td>–</td>
+<td>break → pass 3, map = {a, b, c}</td>
+</tr>
+<tr>
+<td>3</td>
+<td>x</td>
+<td>–</td>
+<td>–</td>
+<td>0</td>
+<td><strong>insert</strong> (before <code>a</code>)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>a</td>
+<td>a</td>
+<td>0</td>
+<td>0</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>3</td>
+<td>b</td>
+<td>b</td>
+<td>1</td>
+<td>1</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>3</td>
+<td>c</td>
+<td>c</td>
+<td>2</td>
+<td>2</td>
+<td>stay</td>
+</tr>
+</tbody>
+</table>
+<p>1 DOM operation. With <strong>index keys</strong> the same change becomes: key 0 matches
+old key 0 (the <code>a</code> fiber) → updated to show x, key 1 → shows a, key 2 →
+shows b, and key 3 is inserted to show c. That’s 3 updates and 1 insert, and
+all local state is shifted by one row.</p>
+<h3 id="move-first-to-last-a-b-c-d--b-c-d-a">Move first to last: <code>[a, b, c, d]</code> → <code>[b, c, d, a]</code></h3>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>New child</th>
+<th>Old idx</th>
+<th><code>lp</code></th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>b</td>
+<td>key ≠ a</td>
+<td>–</td>
+<td>break, map all</td>
+</tr>
+<tr>
+<td>3</td>
+<td>b</td>
+<td>1</td>
+<td>1</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>3</td>
+<td>c</td>
+<td>2</td>
+<td>2</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>3</td>
+<td>d</td>
+<td>3</td>
+<td>3</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>3</td>
+<td>a</td>
+<td>0 &lt; 3</td>
+<td>3</td>
+<td><strong>move</strong></td>
+</tr>
+</tbody>
+</table>
+<p>1 move.</p>
+<h3 id="move-last-to-first-a-b-c-d--d-a-b-c">Move last to first: <code>[a, b, c, d]</code> → <code>[d, a, b, c]</code></h3>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>New child</th>
+<th>Old idx</th>
+<th><code>lp</code></th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>d</td>
+<td>key ≠ a</td>
+<td>–</td>
+<td>break, map all</td>
+</tr>
+<tr>
+<td>3</td>
+<td>d</td>
+<td>3</td>
+<td>3</td>
+<td>stay</td>
+</tr>
+<tr>
+<td>3</td>
+<td>a</td>
+<td>0 &lt; 3</td>
+<td>3</td>
+<td><strong>move</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>b</td>
+<td>1 &lt; 3</td>
+<td>3</td>
+<td><strong>move</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>c</td>
+<td>2 &lt; 3</td>
+<td>3</td>
+<td><strong>move</strong></td>
+</tr>
+</tbody>
+</table>
+<p>3 moves, although moving <code>d</code> alone would do. This is the known worst case:
+because React commits to “stay” greedily from the left, bringing an item from
+the end to the front moves everything else.</p>
+<blockquote>
+<p>In practice this rarely matters. Moves are cheap next to rendering, and
+the fibers (and their state) are all reused either way. It matters for
+things that are sensitive to DOM moves: an <code>&lt;iframe&gt;</code> or <code>&lt;video&gt;</code> that
+restarts when moved, CSS transitions, or focus. If you have a list where
+items often jump to the top, the moved items are the ones that lose
+iframe/video state.</p>
+</blockquote>
+<h2 id="how-other-frameworks-differ">How other frameworks differ</h2>
+<p>Vue 3 (and Inferno before it) also trims the matching prefix, but it trims
+the matching <strong>suffix</strong> too, because its virtual nodes live in arrays that
+can be indexed from both ends. For the middle it computes the <strong>longest
+increasing subsequence</strong> of old indices, which is exactly the largest set of
+nodes that can stay, and moves only the rest. That’s optimal in moves at
+O(n log n). React’s greedy <code>lastPlacedIndex</code> is a cheap approximation of the
+same idea: it keeps an increasing subsequence, just not necessarily the
+longest one.</p>
+<h2 id="rules-and-caveats">Rules and caveats</h2>
+<ul>
+<li><strong>Give dynamic lists stable, unique keys from the data</strong> (<code>id</code>), never
+<code>Math.random()</code> (every item remounts every render) and not the index
+unless the list never reorders or inserts.</li>
+<li><strong>Keys only need to be unique among siblings.</strong> They’re compared within one
+parent’s children.</li>
+<li><strong>Same key and different type is not a match.</strong> The old fiber is deleted
+and a new one created.</li>
+<li><strong>Duplicate keys</strong> trigger a dev warning (<code>warnOnInvalidKey</code>). The second
+one behaves unpredictably because the <code>Map</code> holds only one fiber per key.</li>
+<li><strong>Fragments and nested arrays are separate lists.</strong> <code>[&lt;A/&gt;, [&lt;B/&gt;, &lt;C/&gt;]]</code>
+reconciles the inner array as its own child with its own index.</li>
+</ul>
+<h3 id="sources">Sources</h3>
+<ul>
+<li>React 19.2.5 source: <code>react-dom-client.development.js</code> (<code>reconcileChildrenArray</code>, <code>updateSlot</code>, <code>updateElement</code>, <code>mapRemainingChildren</code>, <code>placeChild</code>, <code>useFiber</code>)</li>
+<li><a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactChildFiber.js">React source: <code>ReactChildFiber.js</code></a> (unminified, with comments)</li>
+<li><a href="https://legacy.reactjs.org/docs/reconciliation.html#keys">Legacy React docs: Reconciliation, Keys</a></li>
+</ul>
+<p class="source" data-astro-cid-vex5zuxs>Primary source: <a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactChildFiber.js" data-astro-cid-vex5zuxs>github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactChildFiber.js</a></p></article></div><nav class="wrap pager" aria-label="Notes" data-astro-cid-vex5zuxs><a class="btn btn-ghost" href="/react-internals/notes/scheduler-lanes-and-batching/" data-astro-cid-vex5zuxs>← Scheduler, Lanes and Batching</a><a class="btn" href="/react-internals/notes/a-state-update-end-to-end/" data-astro-cid-vex5zuxs>A State Update, End to End →</a></nav><footer class="site-foot wrap">Built from the <em>React Internals</em> notes in the Nexus vault · checked against the React 19.2.5 source.</footer><script type="module" src="/react-internals/_astro/Base.astro_astro_type_script_index_0_lang.DLJ85iFT.js"></script></body></html>

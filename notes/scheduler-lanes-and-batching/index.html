@@ -1,0 +1,402 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Lanes as a priority bitmask, automatic batching, time slicing, interruption and starvation."><link rel="icon" href="/react-internals/favicon.svg" type="image/svg+xml"><title>Scheduler, Lanes and Batching · React Internals</title><link rel="stylesheet" href="/react-internals/_astro/notes-meta.bWncZdHM.css"><style>.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:center;gap:32px;padding-top:clamp(28px,5vw,56px);padding-bottom:clamp(28px,4vw,44px);display:grid}@media (width<=760px){.note-head[data-astro-cid-vex5zuxs]{grid-template-columns:1fr}.head-art[data-astro-cid-vex5zuxs]{display:none}}.back[data-astro-cid-vex5zuxs]{margin-bottom:22px;padding:.45em 1em;font-size:13.5px}.meta[data-astro-cid-vex5zuxs]{align-items:center;gap:12px;margin-bottom:12px;display:flex}.num[data-astro-cid-vex5zuxs]{color:var(--ink-soft);font-size:14px;font-weight:800}h1[data-astro-cid-vex5zuxs]{letter-spacing:-.05em;font-size:clamp(38px,6vw,68px);line-height:1}.summary[data-astro-cid-vex5zuxs]{max-width:56ch;color:var(--ink-soft);margin:16px 0 0;font-size:18px}.head-art[data-astro-cid-vex5zuxs]{padding:12px}.head-art[data-astro-cid-vex5zuxs] .panel[data-astro-cid-vex5zuxs] svg{width:100%;height:auto;display:block}.layout[data-astro-cid-vex5zuxs]{grid-template-columns:240px minmax(0,1fr);align-items:start;gap:28px;display:grid}@media (width<=1000px){.layout[data-astro-cid-vex5zuxs]{grid-template-columns:minmax(0,1fr)}.toc[data-astro-cid-vex5zuxs]{display:none}}.toc[data-astro-cid-vex5zuxs]{position:sticky;top:20px}.toc-card[data-astro-cid-vex5zuxs]{max-height:calc(100vh - 40px);padding:16px 16px 12px;overflow-y:auto}.toc-title[data-astro-cid-vex5zuxs]{text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-size:12px;font-weight:800}.toc[data-astro-cid-vex5zuxs] ol[data-astro-cid-vex5zuxs]{margin:0;padding:0;font-size:14px;line-height:1.35;list-style:none}.toc[data-astro-cid-vex5zuxs] li[data-astro-cid-vex5zuxs]{margin:0 0 8px}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]{font-weight:600;text-decoration:none}.toc[data-astro-cid-vex5zuxs] a[data-astro-cid-vex5zuxs]:hover{text-decoration:underline;text-decoration-color:var(--orange);text-decoration-thickness:2px}.source[data-astro-cid-vex5zuxs]{border-top:2px dashed var(--cream-deep);overflow-wrap:anywhere;margin-top:2.5em;padding-top:1em;font-size:14px}.pager[data-astro-cid-vex5zuxs]{flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:40px;display:flex}
+</style></head><body><header class="note-head wrap" data-astro-cid-vex5zuxs><div class="head-text" data-astro-cid-vex5zuxs><a class="btn btn-ghost back" href="/react-internals/" data-astro-cid-vex5zuxs>← All notes</a><div class="meta" data-astro-cid-vex5zuxs><span class="pill" data-astro-cid-vex5zuxs><span class="lvl lvl-good" data-astro-cid-vex5zuxs></span>Good to know</span><span class="num" data-astro-cid-vex5zuxs>Note 07</span></div><h1 data-astro-cid-vex5zuxs>Scheduler, Lanes and Batching</h1><p class="summary" data-astro-cid-vex5zuxs>Lanes as a priority bitmask, automatic batching, time slicing, interruption and starvation.</p></div><div class="head-art card" data-astro-cid-vex5zuxs><div class="panel" data-astro-cid-vex5zuxs><svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><line x1="0" y1="78" x2="240" y2="78" stroke="#2b2522" stroke-width="1.4"/><g transform="translate(124 76) skewY(-8)" stroke="#2b2522" stroke-width="2" stroke-linejoin="round"><path d="M10 -50 L-14 2 L2 2 L-10 50 L22 -8 L6 -8 L18 -50 Z" transform="translate(7 5)" fill="#c9c9c9"/><path d="M10 -50 L-14 2 L2 2 L-10 50 L22 -8 L6 -8 L18 -50 Z" fill="#f5c542"/><path d="M6 -42 L-6 -6" stroke="#fff3c4" stroke-width="3"/></g></svg></div></div></header><div class="wrap layout" data-astro-cid-vex5zuxs><aside class="toc" data-astro-cid-vex5zuxs><nav class="card toc-card" aria-label="On this page" data-astro-cid-vex5zuxs><p class="toc-title" data-astro-cid-vex5zuxs>On this page</p><ol data-astro-cid-vex5zuxs><li data-astro-cid-vex5zuxs><a href="#interview-qa" data-astro-cid-vex5zuxs>Interview Q&amp;A</a></li><li data-astro-cid-vex5zuxs><a href="#the-problem-not-all-updates-are-equally-urgent" data-astro-cid-vex5zuxs>The problem: not all updates are equally urgent</a></li><li data-astro-cid-vex5zuxs><a href="#lanes-priority-as-bits" data-astro-cid-vex5zuxs>Lanes: priority as bits</a></li><li data-astro-cid-vex5zuxs><a href="#batching-queue-now-render-later" data-astro-cid-vex5zuxs>Batching: queue now, render later</a></li><li data-astro-cid-vex5zuxs><a href="#sync-vs-concurrent-which-loop-runs" data-astro-cid-vex5zuxs>Sync vs concurrent: which loop runs</a></li><li data-astro-cid-vex5zuxs><a href="#the-scheduler-package-time-slicing" data-astro-cid-vex5zuxs>The Scheduler package: time slicing</a></li><li data-astro-cid-vex5zuxs><a href="#interruption-and-restart" data-astro-cid-vex5zuxs>Interruption and restart</a></li><li data-astro-cid-vex5zuxs><a href="#starvation-protection" data-astro-cid-vex5zuxs>Starvation protection</a></li><li data-astro-cid-vex5zuxs><a href="#scheduling-step-by-step" data-astro-cid-vex5zuxs>Scheduling, step by step</a></li><li data-astro-cid-vex5zuxs><a href="#rules-and-caveats" data-astro-cid-vex5zuxs>Rules and caveats</a></li></ol></nav></aside><article class="card prose" data-astro-cid-vex5zuxs><blockquote>
+<p>How React decides <strong>when</strong> to render and <strong>how urgently</strong>. It covers update
+priorities (lanes), batching, time slicing, interruption and starvation.
+Read from the React 19.2.5 build (<code>requestUpdateLane</code>, <code>getEventPriority</code>,
+<code>getHighestPriorityLanes</code>, <code>ensureRootIsScheduled</code>, <code>performWorkOnRoot</code>,
+<code>scheduleTaskForRootDuringMicrotask</code>) and the <code>scheduler</code> package
+(<code>scheduler.development.js</code>). Part of <a href="../../">React Internals</a>. This is the
+machinery behind <em>Concurrent Rendering</em> and
+<em>useTransition and Avoiding Loading Flicker</em>. My own notes and
+clarifications are marked with <code>&gt; 💬</code>.</p>
+</blockquote>
+<h2 id="interview-qa">Interview Q&amp;A</h2>
+<details class="qa"><summary>What are lanes?</summary>
+<p>React’s representation of update <strong>priority</strong>. Each lane is one bit in a
+31-bit integer. Every update gets a lane, and every fiber keeps a bitmask of
+the lanes it has pending (<code>lanes</code>, <code>childLanes</code>). Bitmasks let React group
+updates (“render everything in these lanes together”), test membership with
+one <code>&amp;</code>, and pick the most urgent pending work with <code>lanes &amp; -lanes</code>.</p>
+</details>
+<details class="qa"><summary>What is automatic batching?</summary>
+<p>Multiple state updates in the same event or tick produce <strong>one</strong> render.
+<code>setState</code> doesn’t render. It queues an update and asks for the root to be
+scheduled, which happens in a microtask. Since React 18 this applies
+everywhere (promises, timeouts, native listeners), not just inside React
+event handlers. In our example, <code>setA(1); setB(2); setC(3)</code> in a click
+handler renders once.</p>
+</details>
+<details class="qa"><summary>Does React always render concurrently in React 18+?</summary>
+<p>No. Only <strong>non-blocking</strong> lanes (transitions, <code>useDeferredValue</code>,
+Suspense retries, idle, offscreen) render with the interruptible loop.
+Clicks, typing, hover and ordinary default updates render <strong>synchronously</strong>
+(<code>workLoopSync</code>). Concurrent features are opt-in per update.</p>
+</details>
+<details class="qa"><summary>What happens if a transition keeps getting interrupted forever?</summary>
+<p>It’s protected against <strong>starvation</strong>. Each pending lane gets an
+expiration time (250ms for sync/continuous lanes, 5s for transitions). Once
+it expires, React marks it expired and renders it synchronously, without
+yielding.</p>
+</details>
+<details class="qa"><summary>Why does the Scheduler use <code>MessageChannel</code> instead of <code>setTimeout(0)</code>?</summary>
+<p>Browsers clamp nested <code>setTimeout</code> to ≥4ms, which wastes time every
+slice. A <code>MessageChannel</code> message posts a macrotask right away, and still
+lets the browser paint and handle input between tasks.</p>
+</details>
+<h2 id="the-problem-not-all-updates-are-equally-urgent">The problem: not all updates are equally urgent</h2>
+<p>A keystroke must show up within a frame. A search-results list for that
+keystroke can lag a bit. A prefetched offscreen tab can wait indefinitely. A
+single “render queue” can’t express that. React needs to:</p>
+<ol>
+<li><strong>label</strong> each update with a priority,</li>
+<li><strong>group</strong> updates of the same priority into one render (batching),</li>
+<li><strong>pick</strong> the most urgent group next,</li>
+<li><strong>yield</strong> during low-priority renders so urgent ones can cut in,</li>
+<li>and <strong>not starve</strong> low-priority work forever.</li>
+</ol>
+<p>Lanes handle 1–3 and 5. The Scheduler package handles 4.</p>
+<h2 id="lanes-priority-as-bits">Lanes: priority as bits</h2>
+<p>Selected lanes from the 19.2.5 build (lower bit = higher priority):</p>
+<figure class="fig fig-lanes"><div class="lanes"><div class="lanes-axis"><span>← higher priority</span><span>lower priority →</span></div><div class="lanes-grid"><span class="lane " title="bit 0">0</span><span class="lane lane-sync" title="SyncLane · bit 1 · 2">1</span><span class="lane " title="bit 2">2</span><span class="lane lane-cont" title="InputContinuousLane · bit 3 · 8">3</span><span class="lane " title="bit 4">4</span><span class="lane lane-def" title="DefaultLane · bit 5 · 32">5</span><span class="lane " title="bit 6">6</span><span class="lane " title="bit 7">7</span><span class="lane lane-trans" title="TransitionLane · bit 8">8</span><span class="lane lane-trans" title="TransitionLane · bit 9">9</span><span class="lane lane-trans" title="TransitionLane · bit 10">10</span><span class="lane lane-trans" title="TransitionLane · bit 11">11</span><span class="lane lane-trans" title="TransitionLane · bit 12">12</span><span class="lane lane-trans" title="TransitionLane · bit 13">13</span><span class="lane lane-trans" title="TransitionLane · bit 14">14</span><span class="lane lane-trans" title="TransitionLane · bit 15">15</span><span class="lane lane-trans" title="TransitionLane · bit 16">16</span><span class="lane lane-trans" title="TransitionLane · bit 17">17</span><span class="lane lane-trans" title="TransitionLane · bit 18">18</span><span class="lane lane-trans" title="TransitionLane · bit 19">19</span><span class="lane lane-trans" title="TransitionLane · bit 20">20</span><span class="lane lane-trans" title="TransitionLane · bit 21">21</span><span class="lane lane-retry" title="RetryLane · bit 22">22</span><span class="lane lane-retry" title="RetryLane · bit 23">23</span><span class="lane lane-retry" title="RetryLane · bit 24">24</span><span class="lane lane-retry" title="RetryLane · bit 25">25</span><span class="lane " title="bit 26">26</span><span class="lane " title="bit 27">27</span><span class="lane lane-idle" title="IdleLane · bit 28 · 268435456">28</span><span class="lane lane-off" title="OffscreenLane · bit 29 · 536870912">29</span><span class="lane " title="bit 30">30</span></div><div class="legend"><span><i class="sw lane-sync"></i>Sync (click, keydown)</span><span><i class="sw lane-cont"></i>InputContinuous (scroll, mousemove)</span><span><i class="sw lane-def"></i>Default (setTimeout, fetch)</span><span><i class="sw lane-trans"></i>Transitions</span><span><i class="sw lane-retry"></i>Retry</span><span><i class="sw lane-idle"></i>Idle</span><span><i class="sw lane-off"></i>Offscreen</span></div></div><figcaption>Lanes are bits in one 31-bit number. Lower bit = higher priority, and <code>lanes &amp; -lanes</code> picks the most urgent.</figcaption></figure>
+<table>
+<thead>
+<tr>
+<th>Lane</th>
+<th>Value</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SyncLane</code></td>
+<td><code>0b10</code> (2)</td>
+<td>discrete events: <code>click</code>, <code>keydown</code>, <code>input</code>, <code>focus</code>…, and <code>flushSync</code></td>
+</tr>
+<tr>
+<td><code>InputContinuousLane</code></td>
+<td><code>0b1000</code> (8)</td>
+<td>continuous events: <code>mousemove</code>, <code>pointermove</code>, <code>scroll</code>, <code>wheel</code>, <code>drag*</code></td>
+</tr>
+<tr>
+<td><code>DefaultLane</code></td>
+<td><code>0b100000</code> (32)</td>
+<td>updates outside any event: <code>setTimeout</code>, promise callbacks, <code>fetch().then</code></td>
+</tr>
+<tr>
+<td><code>TransitionLane1…</code></td>
+<td><code>256</code> and up (a range of bits)</td>
+<td><code>startTransition</code>, <code>useTransition</code>, <code>useDeferredValue</code> background renders</td>
+</tr>
+<tr>
+<td><code>RetryLane…</code></td>
+<td>higher bits</td>
+<td>re-rendering a Suspense boundary after its data resolved</td>
+</tr>
+<tr>
+<td><code>IdleLane</code></td>
+<td><code>268435456</code></td>
+<td>idle-priority work</td>
+</tr>
+<tr>
+<td><code>OffscreenLane</code></td>
+<td><code>536870912</code></td>
+<td>hidden <code>&lt;Activity&gt;</code> / offscreen trees</td>
+</tr>
+</tbody>
+</table>
+<p>Because they’re bits:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> pending</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> SyncLane </span><span style="color:#D73A49">|</span><span style="color:#24292E"> TransitionLane1          </span><span style="color:#6A737D">// two kinds of work pending</span></span>
+<span class="line"><span style="color:#24292E">(pending </span><span style="color:#D73A49">&amp;</span><span style="color:#24292E"> SyncLane) </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> 0</span><span style="color:#6A737D">                          // "is sync work pending?" → true</span></span>
+<span class="line"><span style="color:#24292E">pending </span><span style="color:#D73A49">&amp;</span><span style="color:#D73A49"> -</span><span style="color:#24292E">pending                                  </span><span style="color:#6A737D">// lowest set bit → SyncLane (most urgent)</span></span>
+<span class="line"><span style="color:#24292E">fiber.childLanes </span><span style="color:#D73A49">|=</span><span style="color:#24292E"> lane                            </span><span style="color:#6A737D">// "something below me has this work"</span></span></code></pre>
+<p><code>getHighestPriorityLanes</code> does exactly <code>lanes &amp; -lanes</code> (two’s complement
+isolates the lowest set bit), except that all transition bits are returned
+together so they render as one batch.</p>
+<h3 id="how-an-update-picks-its-lane">How an update picks its lane</h3>
+<p>From <code>requestUpdateLane(fiber)</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> requestUpdateLane</span><span style="color:#24292E">(</span><span style="color:#E36209">fiber</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (isRendering </span><span style="color:#D73A49">&amp;&amp;</span><span style="color:#24292E"> workInProgressRootRenderLanes </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> 0</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">		return</span><span style="color:#6F42C1"> pickArbitraryLane</span><span style="color:#24292E">(workInProgressRootRenderLanes)  </span><span style="color:#6A737D">// setState during render</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> transition</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> ReactSharedInternals.</span><span style="color:#005CC5">T</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (transition </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> null</span><span style="color:#24292E">) </span><span style="color:#D73A49">return</span><span style="color:#6F42C1"> requestTransitionLane</span><span style="color:#24292E">()      </span><span style="color:#6A737D">// inside startTransition</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#6F42C1"> resolveUpdatePriority</span><span style="color:#24292E">()                                </span><span style="color:#6A737D">// from the current event</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> resolveUpdatePriority</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> updatePriority</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> ReactDOMSharedInternals.p   </span><span style="color:#6A737D">// set by flushSync etc.</span></span>
+<span class="line"><span style="color:#D73A49">	if</span><span style="color:#24292E"> (updatePriority </span><span style="color:#D73A49">!==</span><span style="color:#005CC5"> 0</span><span style="color:#24292E">) </span><span style="color:#D73A49">return</span><span style="color:#24292E"> updatePriority</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#005CC5"> event</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> window.event</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> event </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> undefined</span><span style="color:#D73A49"> ?</span><span style="color:#24292E"> DefaultEventPriority </span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> getEventPriority</span><span style="color:#24292E">(event.type)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>getEventPriority</code> is a big <code>switch</code> over DOM event names: <code>click</code>,
+<code>keydown</code>, <code>input</code>, <code>focusin</code> and similar → <code>DiscreteEventPriority</code> (=
+<code>SyncLane</code>). <code>mousemove</code>, <code>scroll</code>, <code>wheel</code>, <code>pointermove</code> and similar →
+<code>ContinuousEventPriority</code> (= <code>InputContinuousLane</code>). Everything else →
+<code>DefaultEventPriority</code> (= <code>DefaultLane</code>).</p>
+<blockquote>
+<p>This is why the <em>same</em> <code>setState</code> call gets different priorities
+depending on where it runs. In an <code>onClick</code> it’s <code>SyncLane</code>. In a
+<code>setTimeout</code> it’s <code>DefaultLane</code>. Inside <code>startTransition</code> it’s a
+transition lane, whatever the event.</p>
+</blockquote>
+<h2 id="batching-queue-now-render-later">Batching: queue now, render later</h2>
+<p><code>setState</code> never renders by itself. The sequence is:</p>
+<figure class="fig anim fig-batching-anim" data-anim><div class="anim-scn" data-anim-scn="0"  data-steps="[{&quot;phase&quot;:&quot;event&quot;,&quot;fn&quot;:&quot;dispatchSetState → requestUpdateLane() = SyncLane&quot;,&quot;say&quot;:&quot;Inside a click, the update gets &lt;code&gt;SyncLane&lt;/code&gt;. It is stashed in a queue…&quot;,&quot;set&quot;:{&quot;l0&quot;:&quot;hl&quot;,&quot;u0&quot;:&quot;new&quot;}},{&quot;phase&quot;:&quot;schedule&quot;,&quot;fn&quot;:&quot;ensureRootIsScheduled(root) → queueMicrotask(…)&quot;,&quot;say&quot;:&quot;…and React schedules &lt;b&gt;one&lt;/b&gt; microtask to process the root later.&quot;,&quot;set&quot;:{&quot;l0&quot;:&quot;&quot;,&quot;micro&quot;:&quot;on&quot;},&quot;txt&quot;:{&quot;micro&quot;:&quot;microtask: scheduled&quot;}},{&quot;phase&quot;:&quot;event&quot;,&quot;fn&quot;:&quot;dispatchSetState(setFlag)&quot;,&quot;say&quot;:&quot;Second update: queued. The microtask is &lt;b&gt;already scheduled&lt;/b&gt;, so nothing new is scheduled.&quot;,&quot;set&quot;:{&quot;micro&quot;:&quot;keep&quot;,&quot;l1&quot;:&quot;hl&quot;,&quot;u1&quot;:&quot;new&quot;}},{&quot;phase&quot;:&quot;event&quot;,&quot;fn&quot;:&quot;dispatchSetState(setText)&quot;,&quot;say&quot;:&quot;Third update: queued.&quot;,&quot;set&quot;:{&quot;l1&quot;:&quot;&quot;,&quot;l2&quot;:&quot;hl&quot;,&quot;u2&quot;:&quot;new&quot;}},{&quot;phase&quot;:&quot;event&quot;,&quot;fn&quot;:&quot;handler returns&quot;,&quot;say&quot;:&quot;The handler is done. &lt;b&gt;Nothing has rendered yet&lt;/b&gt;: the screen still shows the old UI.&quot;,&quot;set&quot;:{&quot;l2&quot;:&quot;&quot;,&quot;ret&quot;:&quot;hl&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;processRootScheduleInMicrotask → performSyncWorkOnRoot&quot;,&quot;say&quot;:&quot;The microtask runs and renders the root &lt;b&gt;once&lt;/b&gt;, applying all three updates together.&quot;,&quot;set&quot;:{&quot;ret&quot;:&quot;faint&quot;,&quot;micro&quot;:&quot;done&quot;,&quot;u0&quot;:&quot;done&quot;,&quot;u1&quot;:&quot;done&quot;,&quot;u2&quot;:&quot;done&quot;,&quot;renders&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;micro&quot;:&quot;microtask: ran&quot;,&quot;renders&quot;:&quot;renders: 1&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitRoot&quot;,&quot;say&quot;:&quot;One commit, one paint. That’s automatic batching (React 18+), and it works the same in &lt;code&gt;setTimeout&lt;/code&gt; or &lt;code&gt;.then&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;renders&quot;:&quot;&quot;,&quot;screen&quot;:&quot;ok&quot;},&quot;txt&quot;:{&quot;screen&quot;:&quot;screen: count, flag, text updated&quot;}}]" data-intro="A click handler calls three different setters."><div class="anim-stage"><div class="a-cols"><div class="a-panel "><div class="a-panel-title">handleClick()</div><div class="a-col"><div class="an call" data-k="l0"><code>setCount(c => c + 1)</code></div><div class="an call" data-k="l1"><code>setFlag(true)</code></div><div class="an call" data-k="l2"><code>setText('hi')</code></div><div class="an call" data-k="ret" data-s="faint"><code>}  // handler returns</code></div></div></div><div class="a-panel "><div class="a-panel-title">queued updates</div><div class="a-col"><div class="an node comp" data-k="u0" data-s="ghost"><span class="node-label" data-k="u0-label">count</span><small data-k="u0-sub">SyncLane</small></div><div class="an node comp" data-k="u1" data-s="ghost"><span class="node-label" data-k="u1-label">flag</span><small data-k="u1-sub">SyncLane</small></div><div class="an node comp" data-k="u2" data-s="ghost"><span class="node-label" data-k="u2-label">text</span><small data-k="u2-sub">SyncLane</small></div></div></div><div class="a-panel "><div class="a-panel-title">React</div><div class="a-col"><span class="an chip-a" data-k="micro">microtask: none</span><span class="an chip-a" data-k="renders">renders: 0</span><span class="an chip-a" data-k="screen">screen: old</span></div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-event">event</span><code>dispatchSetState → requestUpdateLane() = SyncLane</code><span>Inside a click, the update gets <code>SyncLane</code>. It is stashed in a queue…</span></li><li><span class="anim-phase ph-schedule">schedule</span><code>ensureRootIsScheduled(root) → queueMicrotask(…)</code><span>…and React schedules <b>one</b> microtask to process the root later.</span></li><li><span class="anim-phase ph-event">event</span><code>dispatchSetState(setFlag)</code><span>Second update: queued. The microtask is <b>already scheduled</b>, so nothing new is scheduled.</span></li><li><span class="anim-phase ph-event">event</span><code>dispatchSetState(setText)</code><span>Third update: queued.</span></li><li><span class="anim-phase ph-event">event</span><code>handler returns</code><span>The handler is done. <b>Nothing has rendered yet</b>: the screen still shows the old UI.</span></li><li><span class="anim-phase ph-render">render phase</span><code>processRootScheduleInMicrotask → performSyncWorkOnRoot</code><span>The microtask runs and renders the root <b>once</b>, applying all three updates together.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitRoot</code><span>One commit, one paint. That’s automatic batching (React 18+), and it works the same in <code>setTimeout</code> or <code>.then</code>.</span></li></ol></div><div class="anim-hud" aria-live="polite"><div class="anim-call"><span class="anim-phase" hidden></span><code class="anim-fn" hidden></code></div><p class="anim-say"></p></div><div class="anim-controls"><button type="button" class="btn btn-ghost anim-btn" data-act="restart" aria-label="Restart">↺</button><button type="button" class="btn btn-ghost anim-btn" data-act="prev" aria-label="Previous step">←</button><button type="button" class="btn anim-play" data-act="play">▶ Play</button><button type="button" class="btn btn-ghost anim-btn" data-act="next" aria-label="Next step">→</button><div class="anim-progress"><div class="anim-bar"></div></div><span class="anim-count">0 / 0</span></div><figcaption>Batching: updates queue up during the handler; one microtask renders them all.</figcaption></figure>
+<ol>
+<li><code>dispatchSetState</code> creates an update <code>{ lane, action, next }</code> and stashes
+it in a module-level <code>concurrentQueues</code> array, together with its fiber and
+hook queue (<a href="../hooks-under-the-hood/">Hooks Under the Hood</a>). <code>getRootForUpdatedFiber</code> walks
+<code>return</code> pointers up to find the root.</li>
+<li>Later, when the next render starts (<code>prepareFreshStack</code> →
+<code>finishQueueingConcurrentUpdates</code>), each stashed update is linked into its
+hook’s circular queue, and <code>markUpdateLaneFromFiberToRoot</code> ORs the lane
+into <code>fiber.lanes</code> and into <code>childLanes</code> of every ancestor. <a href="../the-work-loop/">The Work Loop</a>
+uses that trail to find the changed fiber.</li>
+<li>Right away, <code>scheduleUpdateOnFiber</code> → <code>markRootUpdated</code> (adds the lane to
+<code>root.pendingLanes</code>) → <code>ensureRootIsScheduled(root)</code> adds the root to
+a list and, if not already done, schedules a <strong>microtask</strong>
+(<code>queueMicrotask</code>).</li>
+<li>The rest of your handler runs. More <code>setState</code> calls repeat 1–3 and find
+the microtask already scheduled.</li>
+<li>In the microtask, <code>processRootScheduleInMicrotask</code> looks at each root’s
+pending lanes. <strong>Sync</strong> lanes are rendered right there, at the end of the
+microtask. Other lanes get a Scheduler task at a matching priority
+(continuous → <code>UserBlockingPriority</code>, default → <code>NormalPriority</code>,
+transitions → <code>NormalPriority</code>, idle → <code>IdlePriority</code>).</li>
+</ol>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="tsx"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> handleClick</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#6F42C1">	setCount</span><span style="color:#24292E">((</span><span style="color:#E36209">c</span><span style="color:#24292E">) </span><span style="color:#D73A49">=&gt;</span><span style="color:#24292E"> c </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">)   </span><span style="color:#6A737D">// queue update 1 (SyncLane), schedule microtask</span></span>
+<span class="line"><span style="color:#6F42C1">	setFlag</span><span style="color:#24292E">(</span><span style="color:#005CC5">true</span><span style="color:#24292E">)            </span><span style="color:#6A737D">// queue update 2 (SyncLane), microtask already scheduled</span></span>
+<span class="line"><span style="color:#6F42C1">	setText</span><span style="color:#24292E">(</span><span style="color:#032F62">'hi'</span><span style="color:#24292E">)            </span><span style="color:#6A737D">// queue update 3</span></span>
+<span class="line"><span style="color:#24292E">}                            </span><span style="color:#6A737D">// handler returns → microtask → ONE render with all 3</span></span></code></pre>
+<blockquote>
+<p>Before React 18, batching only happened inside React’s own event
+handlers, because it relied on a “we’re in a batch” flag that React set
+around its handlers. Updates in <code>setTimeout</code> or <code>.then</code> rendered once per
+<code>setState</code>. The microtask-based scheduling in 18+ batches everything that
+happens in the same tick. <code>flushSync</code> is the opt-out.</p>
+</blockquote>
+<h2 id="sync-vs-concurrent-which-loop-runs">Sync vs concurrent: which loop runs</h2>
+<p>When the root’s task runs, <code>performWorkOnRoot(root, lanes, forceSync)</code>
+chooses the loop:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> shouldTimeSlice</span><span style="color:#D73A49"> =</span></span>
+<span class="line"><span style="color:#D73A49">	!</span><span style="color:#24292E">forceSync </span><span style="color:#D73A49">&amp;&amp;</span></span>
+<span class="line"><span style="color:#24292E">	(lanes </span><span style="color:#D73A49">&amp;</span><span style="color:#005CC5"> 127</span><span style="color:#24292E">) </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> 0</span><span style="color:#D73A49"> &amp;&amp;</span><span style="color:#6A737D">               // no Sync / InputContinuous / Default lanes (the "blocking" ones)</span></span>
+<span class="line"><span style="color:#24292E">	(lanes </span><span style="color:#D73A49">&amp;</span><span style="color:#24292E"> root.expiredLanes) </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> 0</span><span style="color:#D73A49"> ||</span><span style="color:#6A737D"> // and nothing has expired</span></span>
+<span class="line"><span style="color:#6F42C1">	checkIfRootIsPrerendering</span><span style="color:#24292E">(root, lanes)</span></span>
+<span class="line"><span style="color:#24292E">shouldTimeSlice </span><span style="color:#D73A49">?</span><span style="color:#6F42C1"> renderRootConcurrent</span><span style="color:#24292E">(root, lanes) </span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> renderRootSync</span><span style="color:#24292E">(root, lanes, </span><span style="color:#005CC5">true</span><span style="color:#24292E">)</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>Update comes from</th>
+<th>Lane</th>
+<th>Render loop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>click, typing, focus</td>
+<td><code>SyncLane</code></td>
+<td><code>workLoopSync</code>, in the microtask</td>
+</tr>
+<tr>
+<td>hover, scroll</td>
+<td><code>InputContinuousLane</code></td>
+<td><code>workLoopSync</code>, in a UserBlocking Scheduler task</td>
+</tr>
+<tr>
+<td><code>setTimeout</code>, <code>fetch().then</code></td>
+<td><code>DefaultLane</code></td>
+<td><code>workLoopSync</code>, in a Normal Scheduler task</td>
+</tr>
+<tr>
+<td><code>startTransition</code>, <code>useDeferredValue</code></td>
+<td>transition lanes</td>
+<td><strong><code>workLoopConcurrentByScheduler</code></strong>: yields every ~5ms</td>
+</tr>
+<tr>
+<td>Suspense retry, offscreen, idle</td>
+<td>retry / offscreen / idle</td>
+<td>concurrent</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-scheduler-package-time-slicing">The Scheduler package: time slicing</h2>
+<p><code>scheduler</code> is a small standalone package that React uses as a cooperative
+task queue for the main thread.</p>
+<p><strong>A min-heap of tasks.</strong> <code>scheduleCallback(priority, callback)</code> creates a task
+with <code>expirationTime = startTime + timeout</code>, where the timeout depends on
+the priority (from the source):</p>
+<table>
+<thead>
+<tr>
+<th>Scheduler priority</th>
+<th>timeout</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ImmediatePriority</code></td>
+<td>−1 (already expired)</td>
+</tr>
+<tr>
+<td><code>UserBlockingPriority</code></td>
+<td>250ms</td>
+</tr>
+<tr>
+<td><code>NormalPriority</code></td>
+<td>5000ms</td>
+</tr>
+<tr>
+<td><code>LowPriority</code></td>
+<td>10000ms</td>
+</tr>
+<tr>
+<td><code>IdlePriority</code></td>
+<td>~12 days (effectively never)</td>
+</tr>
+</tbody>
+</table>
+<p>Tasks are pushed onto a binary <strong>min-heap</strong> (<code>push</code>/<code>siftUp</code>/<code>pop</code>) keyed by
+<code>sortIndex = expirationTime</code>, so the most urgent task is always at the root
+of the heap, found in O(1) and removed in O(log n). Delayed tasks wait in a
+separate <code>timerQueue</code> heap, keyed by start time.</p>
+<p><strong>Running tasks in slices.</strong> The Scheduler’s host loop (<code>performWorkUntilDeadline</code>) pops tasks and runs
+them until <code>shouldYieldToHost()</code> says to stop:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> shouldYieldToHost</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#6A737D">	// (simplified) keep going only while the current slice is under frameInterval</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#6F42C1"> getCurrentTime</span><span style="color:#24292E">() </span><span style="color:#D73A49">-</span><span style="color:#24292E"> startTime </span><span style="color:#D73A49">&gt;=</span><span style="color:#24292E"> frameInterval   </span><span style="color:#6A737D">// frameInterval = 5 (ms)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>If work remains, the Scheduler posts itself a new macrotask through a
+<code>MessageChannel</code> (<code>setImmediate</code> in Node, and <code>setTimeout</code> as a last
+resort). Between those macrotasks the browser can paint and dispatch input
+events.</p>
+<p><strong>Continuations.</strong> A task callback can return a function, which means “not
+done, call me again”. React’s concurrent render uses that. When
+<code>workLoopConcurrentByScheduler</code> exits because <code>shouldYield()</code> returned true,
+React’s task returns a continuation, and the next slice resumes at the
+remembered <code>workInProgress</code> fiber.</p>
+<h2 id="interruption-and-restart">Interruption and restart</h2>
+<p>Say a transition render for a big list is halfway done and the user types a
+character:</p>
+<figure class="fig anim fig-interruption-anim" data-anim><div class="anim-scn" data-anim-scn="0"  data-steps="[{&quot;phase&quot;:&quot;schedule&quot;,&quot;fn&quot;:&quot;startTransition(() =&gt; setQuery('a'))&quot;,&quot;say&quot;:&quot;The results update is a &lt;b&gt;transition&lt;/b&gt;. It is rendered by the concurrent loop in a Scheduler task.&quot;,&quot;set&quot;:{&quot;lanes&quot;:&quot;upd&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;workLoopConcurrentByScheduler → shouldYield() after ~5ms&quot;,&quot;say&quot;:&quot;React works on the tree for about 5ms, then &lt;b&gt;yields&lt;/b&gt; so the browser can paint and handle input.&quot;,&quot;set&quot;:{&quot;lanes&quot;:&quot;&quot;,&quot;t0&quot;:&quot;&quot;,&quot;wip&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;wip&quot;:&quot;WIP tree: half built&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;continuation → next slice, resumes at workInProgress&quot;,&quot;say&quot;:&quot;Each slice resumes exactly where the last one stopped (one pointer: &lt;code&gt;workInProgress&lt;/code&gt;).&quot;,&quot;set&quot;:{&quot;t1&quot;:&quot;&quot;,&quot;t2&quot;:&quot;&quot;,&quot;wip&quot;:&quot;&quot;}},{&quot;phase&quot;:&quot;event&quot;,&quot;fn&quot;:&quot;keydown 'b' → setText('ab') · SyncLane&quot;,&quot;say&quot;:&quot;The user types between two slices. That update is urgent: &lt;code&gt;SyncLane&lt;/code&gt;.&quot;,&quot;set&quot;:{&quot;key&quot;:&quot;bad&quot;,&quot;lanes&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;lanes&quot;:&quot;pendingLanes: Sync | Transition&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;prepareFreshStack(root, SyncLane)&quot;,&quot;say&quot;:&quot;React switches lanes and &lt;b&gt;throws the half-built tree away&lt;/b&gt;. Nothing was committed, so there is nothing to undo.&quot;,&quot;set&quot;:{&quot;key&quot;:&quot;bad&quot;,&quot;t0&quot;:&quot;del&quot;,&quot;t1&quot;:&quot;del&quot;,&quot;t2&quot;:&quot;del&quot;,&quot;lanes&quot;:&quot;&quot;,&quot;wip&quot;:&quot;bad&quot;},&quot;txt&quot;:{&quot;wip&quot;:&quot;WIP tree: discarded&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;renderRootSync → commitRoot&quot;,&quot;say&quot;:&quot;The sync update renders and commits &lt;b&gt;without yielding&lt;/b&gt;. The input shows “ab” immediately.&quot;,&quot;set&quot;:{&quot;sync&quot;:&quot;run&quot;,&quot;input&quot;:&quot;ok&quot;,&quot;wip&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;input&quot;:&quot;input: \&quot;ab\&quot;&quot;,&quot;lanes&quot;:&quot;pendingLanes: Transition&quot;,&quot;wip&quot;:&quot;WIP tree: none&quot;}},{&quot;phase&quot;:&quot;render&quot;,&quot;fn&quot;:&quot;restart transition from the root (query = 'ab')&quot;,&quot;say&quot;:&quot;The transition is still pending. It &lt;b&gt;starts over&lt;/b&gt; from the root, now with the newer state, yielding every ~5ms again.&quot;,&quot;set&quot;:{&quot;sync&quot;:&quot;done&quot;,&quot;input&quot;:&quot;&quot;,&quot;r0&quot;:&quot;&quot;,&quot;r1&quot;:&quot;&quot;,&quot;r2&quot;:&quot;&quot;,&quot;r3&quot;:&quot;&quot;,&quot;r4&quot;:&quot;&quot;,&quot;wip&quot;:&quot;upd&quot;},&quot;txt&quot;:{&quot;wip&quot;:&quot;WIP tree: rebuilding&quot;}},{&quot;phase&quot;:&quot;commit&quot;,&quot;fn&quot;:&quot;commitRoot&quot;,&quot;say&quot;:&quot;The transition finally commits. This is why transition renders must be pure: they can run many times before one commits.&quot;,&quot;set&quot;:{&quot;commit&quot;:&quot;ok&quot;,&quot;results&quot;:&quot;ok&quot;,&quot;wip&quot;:&quot;&quot;},&quot;txt&quot;:{&quot;results&quot;:&quot;results for: \&quot;ab\&quot;&quot;,&quot;lanes&quot;:&quot;pendingLanes: none&quot;,&quot;wip&quot;:&quot;WIP tree: none&quot;}}]" data-intro="The user typed “a”. The input already shows it; the slow results list renders in a transition."><div class="anim-stage"><div class="a-label">main thread →</div><div class="a-track slices"><div class="an slice sl-t" data-k="t0" data-s="ghost" style="--x:0">5ms</div><div class="an slice sl-t" data-k="t1" data-s="ghost" style="--x:1">5ms</div><div class="an slice sl-t" data-k="t2" data-s="ghost" style="--x:2">5ms</div><div class="an slice sl-k" data-k="key" data-s="ghost" style="--x:3">⌨</div><div class="an slice sl-s wide2" data-k="sync" data-s="ghost" style="--x:4">sync</div><div class="an slice sl-t" data-k="r0" data-s="ghost" style="--x:6">5ms</div><div class="an slice sl-t" data-k="r1" data-s="ghost" style="--x:7">5ms</div><div class="an slice sl-t" data-k="r2" data-s="ghost" style="--x:8">5ms</div><div class="an slice sl-t" data-k="r3" data-s="ghost" style="--x:9">5ms</div><div class="an slice sl-t" data-k="r4" data-s="ghost" style="--x:10">5ms</div><div class="an slice sl-c" data-k="commit" data-s="ghost" style="--x:11">✓</div></div><div class="a-cols" style="margin-top:10px"><div class="a-panel "><div class="a-panel-title">root lanes</div><div class="a-col"><span class="an chip-a" data-k="lanes">pendingLanes: Transition</span><span class="an chip-a" data-k="wip">WIP tree: none</span></div></div><div class="a-panel "><div class="a-panel-title">screen</div><div class="a-col"><span class="an chip-a" data-k="input">input: "a"</span><span class="an chip-a" data-k="results">results for: ""</span></div></div></div></div><ol class="anim-print"><li><span class="anim-phase ph-schedule">schedule</span><code>startTransition(() =&gt; setQuery('a'))</code><span>The results update is a <b>transition</b>. It is rendered by the concurrent loop in a Scheduler task.</span></li><li><span class="anim-phase ph-render">render phase</span><code>workLoopConcurrentByScheduler → shouldYield() after ~5ms</code><span>React works on the tree for about 5ms, then <b>yields</b> so the browser can paint and handle input.</span></li><li><span class="anim-phase ph-render">render phase</span><code>continuation → next slice, resumes at workInProgress</code><span>Each slice resumes exactly where the last one stopped (one pointer: <code>workInProgress</code>).</span></li><li><span class="anim-phase ph-event">event</span><code>keydown 'b' → setText('ab') · SyncLane</code><span>The user types between two slices. That update is urgent: <code>SyncLane</code>.</span></li><li><span class="anim-phase ph-render">render phase</span><code>prepareFreshStack(root, SyncLane)</code><span>React switches lanes and <b>throws the half-built tree away</b>. Nothing was committed, so there is nothing to undo.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>renderRootSync → commitRoot</code><span>The sync update renders and commits <b>without yielding</b>. The input shows “ab” immediately.</span></li><li><span class="anim-phase ph-render">render phase</span><code>restart transition from the root (query = 'ab')</code><span>The transition is still pending. It <b>starts over</b> from the root, now with the newer state, yielding every ~5ms again.</span></li><li><span class="anim-phase ph-commit">commit phase</span><code>commitRoot</code><span>The transition finally commits. This is why transition renders must be pure: they can run many times before one commits.</span></li></ol></div><div class="anim-hud" aria-live="polite"><div class="anim-call"><span class="anim-phase" hidden></span><code class="anim-fn" hidden></code></div><p class="anim-say"></p></div><div class="anim-controls"><button type="button" class="btn btn-ghost anim-btn" data-act="restart" aria-label="Restart">↺</button><button type="button" class="btn btn-ghost anim-btn" data-act="prev" aria-label="Previous step">←</button><button type="button" class="btn anim-play" data-act="play">▶ Play</button><button type="button" class="btn btn-ghost anim-btn" data-act="next" aria-label="Next step">→</button><div class="anim-progress"><div class="anim-bar"></div></div><span class="anim-count">0 / 0</span></div><figcaption>Interruption: an urgent update mid-transition discards the work-in-progress, and the transition restarts.</figcaption></figure>
+<ol>
+<li>The <code>keydown</code> handler calls <code>setQuery</code>, which gets <code>SyncLane</code>. The root now has
+<code>SyncLane | TransitionLane1</code> pending.</li>
+<li>The current slice ends (<code>shouldYield</code>). The microtask runs, sees a sync
+lane, and renders the root for <code>SyncLane</code>.</li>
+<li>Since the new lanes differ from the in-progress ones, React calls
+<code>prepareFreshStack</code>, which <strong>throws away</strong> the half-built work-in-progress
+tree. Nothing was committed, so there’s nothing to undo.</li>
+<li>The sync render and commit run. The input updates.</li>
+<li>The transition lane is still pending. It’s rescheduled and <strong>starts over
+from the root</strong>, now with the newer state.</li>
+</ol>
+<p>This is why transitions stay responsive and why their renders must be pure:
+they can run many times before one of them commits.</p>
+<h2 id="starvation-protection">Starvation protection</h2>
+<p>In <code>scheduleTaskForRootDuringMicrotask</code>, React walks every pending lane
+bit. A lane that doesn’t have an expiration time yet gets one
+(<code>computeExpirationTime</code>: <strong>current time + 250ms</strong> for sync and continuous
+lanes, <strong>+ 5000ms</strong> for default, transition and retry lanes; idle and
+offscreen never expire). A lane whose
+time has passed is added to <code>root.expiredLanes</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="js"><code><span class="line"><span style="color:#24292E">expirationTime </span><span style="color:#D73A49">&lt;=</span><span style="color:#24292E"> currentTime </span><span style="color:#D73A49">&amp;&amp;</span><span style="color:#24292E"> (root.expiredLanes </span><span style="color:#D73A49">|=</span><span style="color:#24292E"> lane)</span></span></code></pre>
+<p>As shown above, any expired lane forces <code>renderRootSync</code>. A transition that
+has been interrupted for 5 seconds finishes without yielding.</p>
+<h2 id="scheduling-step-by-step">Scheduling, step by step</h2>
+<p>A search box whose results update inside <code>startTransition</code>:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="tsx"><code><span class="line"><span style="color:#D73A49">function</span><span style="color:#6F42C1"> Search</span><span style="color:#24292E">() {</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#24292E"> [</span><span style="color:#005CC5">text</span><span style="color:#24292E">, </span><span style="color:#005CC5">setText</span><span style="color:#24292E">] </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> useState</span><span style="color:#24292E">(</span><span style="color:#032F62">''</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#24292E"> [</span><span style="color:#005CC5">query</span><span style="color:#24292E">, </span><span style="color:#005CC5">setQuery</span><span style="color:#24292E">] </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> useState</span><span style="color:#24292E">(</span><span style="color:#032F62">''</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">	const</span><span style="color:#24292E"> [</span><span style="color:#005CC5">isPending</span><span style="color:#24292E">, </span><span style="color:#005CC5">startTransition</span><span style="color:#24292E">] </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> useTransition</span><span style="color:#24292E">()</span></span>
+<span class="line"><span style="color:#D73A49">	return</span><span style="color:#24292E"> (</span></span>
+<span class="line"><span style="color:#24292E">		&lt;&gt;</span></span>
+<span class="line"><span style="color:#24292E">			&lt;</span><span style="color:#22863A">input</span></span>
+<span class="line"><span style="color:#6F42C1">				value</span><span style="color:#D73A49">=</span><span style="color:#24292E">{text}</span></span>
+<span class="line"><span style="color:#6F42C1">				onChange</span><span style="color:#D73A49">=</span><span style="color:#24292E">{(</span><span style="color:#E36209">e</span><span style="color:#24292E">) </span><span style="color:#D73A49">=&gt;</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#6F42C1">					setText</span><span style="color:#24292E">(e.target.value)                        </span><span style="color:#6A737D">// urgent</span></span>
+<span class="line"><span style="color:#6F42C1">					startTransition</span><span style="color:#24292E">(() </span><span style="color:#D73A49">=&gt;</span><span style="color:#6F42C1"> setQuery</span><span style="color:#24292E">(e.target.value)) </span><span style="color:#6A737D">// non-urgent</span></span>
+<span class="line"><span style="color:#24292E">				}}</span></span>
+<span class="line"><span style="color:#24292E">			/&gt;</span></span>
+<span class="line"><span style="color:#24292E">			&lt;</span><span style="color:#005CC5">SlowResults</span><span style="color:#6F42C1"> query</span><span style="color:#D73A49">=</span><span style="color:#24292E">{query} </span><span style="color:#6F42C1">dim</span><span style="color:#D73A49">=</span><span style="color:#24292E">{isPending} /&gt;</span></span>
+<span class="line"><span style="color:#24292E">		&lt;/&gt;</span></span>
+<span class="line"><span style="color:#24292E">	)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<table>
+<thead>
+<tr>
+<th>t</th>
+<th>Event</th>
+<th>Lanes pending</th>
+<th>What runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0ms</td>
+<td>type “a”</td>
+<td><code>setText</code> → Sync. <code>setQuery</code> → Transition1. <code>useTransition</code> also queues <code>isPending = true</code> at Sync</td>
+<td>microtask scheduled</td>
+</tr>
+<tr>
+<td>0ms</td>
+<td>microtask</td>
+<td>Sync | Transition1</td>
+<td><strong>sync render</strong> of Sync updates only: <code>text = "a"</code>, <code>isPending = true</code>, <code>query</code> still <code>""</code>. Commit, and the input shows “a”</td>
+</tr>
+<tr>
+<td>0ms+</td>
+<td>Scheduler task (Normal)</td>
+<td>Transition1</td>
+<td><strong>concurrent render</strong>: <code>query = "a"</code>, <code>isPending = false</code>, <code>SlowResults</code> starts rendering… yields every 5ms</td>
+</tr>
+<tr>
+<td>30ms</td>
+<td>type “b” (dispatched between two 5ms slices)</td>
+<td>Sync | Transition1</td>
+<td>microtask: sync render <code>text = "ab"</code>. The half-built Transition1 WIP is <strong>discarded</strong> (<code>prepareFreshStack</code>)</td>
+</tr>
+<tr>
+<td>30ms+</td>
+<td>Scheduler task</td>
+<td>Transition1 (now with <code>query = "ab"</code>)</td>
+<td>restart concurrent render from the root</td>
+</tr>
+<tr>
+<td>90ms</td>
+<td>–</td>
+<td>–</td>
+<td>transition render completes and <strong>commits</strong>: results for “ab”, un-dimmed</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>"a"</code> results were never committed. The user saw every keystroke
+immediately.</p>
+<h2 id="rules-and-caveats">Rules and caveats</h2>
+<ul>
+<li><strong>The default is synchronous.</strong> Clicks and typing render in one blocking
+pass. Use <code>startTransition</code>/<code>useDeferredValue</code> to make specific renders
+interruptible.</li>
+<li><strong>Transitions must be pure and restartable.</strong> They can be thrown away and
+re-run any number of times.</li>
+<li><strong>Batching is per tick.</strong> Updates separated by an <code>await</code> are in different
+ticks, and therefore separate renders.</li>
+<li><strong><code>flushSync</code> breaks batching on purpose.</strong> It renders and commits
+immediately at <code>SyncLane</code>. Use it sparingly (<em>flushSync</em>).</li>
+<li><strong>Time slicing doesn’t make work cheaper.</strong> A 300ms render in a transition
+still costs 300ms of CPU. It just stops blocking input. Fix slow renders
+first (<em>Optimize Rendering</em>).</li>
+<li><strong>Lane numbers are internal</strong> and change between versions (React 19 added
+a gesture lane, for example). Think in categories (sync, continuous,
+default, transition, idle), not values.</li>
+</ul>
+<h3 id="sources">Sources</h3>
+<ul>
+<li>React 19.2.5 source: <code>requestUpdateLane</code>, <code>resolveUpdatePriority</code>, <code>getEventPriority</code>, <code>getHighestPriorityLanes</code>, <code>computeExpirationTime</code>, <code>ensureRootIsScheduled</code>, <code>processRootScheduleInMicrotask</code>, <code>scheduleTaskForRootDuringMicrotask</code>, <code>performWorkOnRoot</code>, <code>prepareFreshStack</code></li>
+<li><code>scheduler</code> package source: <code>unstable_scheduleCallback</code>, <code>push</code>/<code>pop</code> (min-heap), <code>shouldYieldToHost</code>, <code>frameInterval = 5</code>, <code>MessageChannel</code> host loop</li>
+<li><a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberLane.js">React source: <code>ReactFiberLane.js</code></a></li>
+<li><a href="https://react.dev/blog/2022/03/29/react-v18">React 18 release post: automatic batching, concurrent React</a></li>
+<li><a href="https://react.dev/reference/react/useTransition">react.dev: <code>useTransition</code></a></li>
+</ul>
+<p class="source" data-astro-cid-vex5zuxs>Primary source: <a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberLane.js" data-astro-cid-vex5zuxs>github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberLane.js</a></p></article></div><nav class="wrap pager" aria-label="Notes" data-astro-cid-vex5zuxs><a class="btn btn-ghost" href="/react-internals/notes/the-work-loop/" data-astro-cid-vex5zuxs>← The Work Loop</a><a class="btn" href="/react-internals/notes/child-reconciliation-algorithm/" data-astro-cid-vex5zuxs>Child Reconciliation Algorithm →</a></nav><footer class="site-foot wrap">Built from the <em>React Internals</em> notes in the Nexus vault · checked against the React 19.2.5 source.</footer><script type="module" src="/react-internals/_astro/Base.astro_astro_type_script_index_0_lang.DLJ85iFT.js"></script></body></html>
